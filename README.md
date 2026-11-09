@@ -13,59 +13,119 @@ Phiên bản **VER2** được tái cấu trúc theo mô hình **Decoupled Archi
 
 ---
 
-## 🏛️ 2. KIẾN TRÚC HỆ THỐNG & NGUYÊN LÝ THIẾT KẾ
+## 🏛️ 2. KIẾN TRÚC HỆ THỐNG
 
-Hệ thống được thiết kế theo kiến trúc phân tầng (Layered Architecture) với nguyên lý phân tách trách nhiệm (Separation of Concerns - SoC) và khớp nối lỏng (Loose Coupling):
+### 2.1. Kiến Trúc Tổng Thể (System Architecture)
+
+Hệ thống được tổ chức theo mô hình phân tầng chuẩn mực, phân tách độc lập giữa **Frontend SPA**, **Lớp Giao tiếp Dịch vụ (API Service Layer)** và **Tầng Cơ sở Dữ liệu & Lưu trữ**:
 
 ```mermaid
 flowchart TD
-    subgraph UI_Layer["🖥️ TẦNG GIAO DIỆN & TRÌNH DIỄN (Presentation Layer)"]
-        Components["Shared Components (Navbar, Modals, DataTables, Badges, Dropdowns)"]
-        Views["Feature Views (Auth, Courses, Classes, Schedules, Grades, Progressions)"]
-        Styling["Tailwind CSS v4 Styling Engine + Lucide Vector Icons"]
-        Components --> Views
-        Styling --> Components
-    end
-
-    subgraph State_Layer["⚡ TẦNG QUẢN TRỊ TRẠNG THÁI & ĐIỀU HƯỚNG (State & Routing Layer)"]
-        Router["App Router & Role-Based Route Guards"]
-        AuthContext["Auth Context (JWT State, User Session, RBAC 5 Roles)"]
-        Views --> Router
-        Router --> AuthContext
-    end
-
-    subgraph Service_Layer["🌐 TẦNG GIAO TIẾP DỊCH VỤ (Service & API Layer)"]
-        AxiosClient["Axios HTTP Client (Base URL: /api/v1)"]
-        Interceptors["JWT Bearer Interceptors & Centralized Error Handlers"]
-        APIModules["Domain APIs (authApi, coursesApi, classesApi, schedulesApi, gradesApi)"]
-        AuthContext --> AxiosClient
-        AxiosClient --> Interceptors
-        Interceptors --> APIModules
-    end
-
-    subgraph Database_Layer["🗄️ TẦNG CƠ SỞ DỮ LIỆU & LƯU TRỮ (Database & Storage Layer)"]
+    subgraph Frontend_App["🖥️ FRONTEND CLIENT (React 19 + Vite 8 + Tailwind CSS v4)"]
         direction TB
-        SQLiteDB[("SQLite Database (language_center.db)")]
-        PostgresDB[("PostgreSQL 16 Container (Docker Compose)")]
-        PrismaStudio["Prisma ORM & Studio GUI (Port 5555)"]
+        UI_Layer["Tầng Giao Diện & Trình Diễn<br/>(Components, Modals, DataTables, Badges, Dropdowns)"]
+        Views_Layer["Tầng Nghiệp Vụ Giao Diện (Feature Views)<br/>(Auth, Courses, Classes, Schedules, Grades, Progression, Parent Portal)"]
+        State_Layer["Tầng Quản Trị Trạng Thái & Điều Hướng<br/>(App Router, RBAC Route Guards, AuthContext, ToastContext)"]
+        Service_Layer["Tầng Giao Tiếp Dịch Vụ (API Services)<br/>(Axios Client, JWT Interceptors, Domain API Modules)"]
+
+        UI_Layer --> Views_Layer
+        Views_Layer --> State_Layer
+        State_Layer --> Service_Layer
+    end
+
+    subgraph Backend_App["⚙️ BACKEND SPECIFICATION (FastAPI Modular Monolith DDD-Lite)"]
+        direction TB
+        Router_Layer["Router / Controller Layer (HTTP, JWT Auth, RBAC Guards)"]
+        Schema_Layer["Schema / DTO Layer (Pydantic v2 Request/Response Validation)"]
+        Service_Domain["Domain Service Layer (Business Logic & Core Algorithms)"]
+        ORM_Models["ORM Persistence Layer (SQLAlchemy 2.0 Models, Soft Delete, Audits)"]
+
+        Router_Layer --> Schema_Layer
+        Schema_Layer --> Service_Domain
+        Service_Domain --> ORM_Models
+    end
+
+    subgraph Storage_Layer["🗄️ TẦNG CƠ SỞ DỮ LIỆU & LƯU TRỮ (Database Layer)"]
+        direction LR
+        SQLiteDB[("SQLite Database<br/>(language_center.db)")]
+        PostgresDB[("PostgreSQL 16<br/>(Docker Container)")]
+        PrismaStudio["Prisma Studio GUI<br/>(Port 5555)"]
         SQLiteDB --- PrismaStudio
         PostgresDB --- PrismaStudio
     end
 
-    APIModules -.->|"RESTful Endpoints"| Database_Layer
+    Service_Layer ==>|"HTTP REST API Requests (/api/v1)"| Router_Layer
+    ORM_Models ==>|"SQL Queries / Connection Pool"| Storage_Layer
 
-    classDef primary fill:#2563EB,stroke:#1D4ED8,stroke-width:2px,color:#fff;
-    classDef secondary fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
-    classDef storage fill:#D97706,stroke:#B45309,stroke-width:2px,color:#fff;
-    class Views,Router,AuthContext primary;
-    class AxiosClient,Interceptors,APIModules secondary;
-    class SQLiteDB,PostgresDB,PrismaStudio storage;
+    classDef fe fill:#2563EB,stroke:#1D4ED8,stroke-width:2px,color:#fff;
+    classDef be fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef db fill:#D97706,stroke:#B45309,stroke-width:2px,color:#fff;
+    class UI_Layer,Views_Layer,State_Layer,Service_Layer fe;
+    class Router_Layer,Schema_Layer,Service_Domain,ORM_Models be;
+    class SQLiteDB,PostgresDB,PrismaStudio db;
 ```
 
-### Các nguyên lý kiến trúc cốt lõi:
-1. **Feature-Driven Frontend Organization:** Mỗi phân hệ nghiệp vụ (Khóa học, Lớp học, Thời khóa biểu, Điểm số, Đăng ký) được đóng gói độc lập theo từng màn hình chuyên biệt (`src/views/`), giúp dễ bảo trì, mở rộng hoặc viết lại mà không ảnh hưởng tới toàn cục.
-2. **Role-Based Access Control (RBAC):** Kiểm soát phân quyền tập trung tại `AuthContext`, tự động lọc quyền truy cập màn hình và chức năng theo 5 vai trò hệ thống (`ADMIN`, `ACADEMIC_STAFF`, `TEACHER`, `STUDENT`, `PARENT`).
-3. **Decoupled Data Source:** Tách hoàn toàn tầng dữ liệu ra khỏi mã nguồn ứng dụng web. Dữ liệu có thể được truy vấn trực tiếp qua công cụ GUI, Prisma Studio hoặc tích hợp qua các REST/GraphQL API gateway.
+---
+
+### 2.2. Chi Tiết Kiến Trúc Frontend (React 19 / Feature-Driven Architecture)
+
+Frontend được cấu trúc theo triết lý **Feature-Driven Architecture** kết hợp tiêu chuẩn thiết kế **Operate Mode** (tối ưu năng suất cho người vận hành nhập liệu liên tục):
+
+1. **Tầng Giao diện & Trình diễn (Presentation Layer):**
+   - **Thư viện nền tảng:** React 19.3+, Vite 8 (Hot Module Replacement siêu tốc), Tailwind CSS v4.
+   - **Tổ chức theo tính năng (`src/views/`):** Mỗi phân hệ là một View độc lập (`CoursesView`, `ClassesView`, `SchedulesView`, `GradesView`, `ProgressionParentView`...), không phụ thuộc chéo, dễ bảo trì và mở rộng.
+   - **Hệ thống Component dùng chung (`src/components/`):** Các khối giao diện tiêu chuẩn gồm Header Navbar, Sidebar phân nhóm theo vai trò, Modal xác nhận, Data Table hỗ trợ phân trang và tìm kiếm nhanh.
+   - **Chuẩn hiển thị số liệu & Trạng thái:** Sử dụng phông chữ `JetBrains Mono` kết hợp `tabular-nums` cho các cột điểm số, học phí và sĩ số; sử dụng thẻ trạng thái ngữ nghĩa (Semantic Badges) với chấm màu tín hiệu giúp quét thông tin nhanh (Scanability).
+
+2. **Tầng Quản lý Trạng thái & Phân quyền (State & Routing Layer):**
+   - **`AuthContext.jsx`:** Quản lý tập trung trạng thái đăng nhập, giải mã JWT Bearer token, tự động khôi phục phiên từ `localStorage` và cung cấp quyền hạn cho toàn bộ cây component.
+   - **Kiểm soát truy cập theo vai trò (RBAC Route Guard):** Tự động điều hướng và chỉ hiển thị các màn hình mà người dùng hiện tại có quyền thao tác (Admin, Staff, Teacher, Student, Parent).
+   - **`ToastContext.jsx`:** Cơ chế thông báo nổi (non-blocking notification) tự động ẩn sau 4 giây, loại bỏ hoàn toàn các hộp thoại `alert()` gây gián đoạn luồng làm việc.
+
+3. **Tầng Kết nối Dịch vụ (Service & API Client Layer):**
+   - **Axios Client tập trung (`src/services/api.js`):** Khởi tạo instance kết nối thống nhất với tiền tố `/api/v1`.
+   - **Request Interceptor:** Tự động đính kèm `Authorization: Bearer <token>` vào mọi yêu cầu gửi đi.
+   - **Response Interceptor:** Bắt lỗi tập trung (xử lý lỗi `401 Unauthorized` tự động xóa token và chuyển về trang đăng nhập; trích xuất chi tiết thông báo lỗi từ server để hiển thị Toast).
+
+---
+
+### 2.3. Chi Tiết Kiến Trúc Backend (Modular Monolith & DDD-Lite)
+
+Backend của hệ thống được quy hoạch và thiết kế theo kiến trúc **Modular Monolith & DDD-Lite** (Domain-Driven Design rút gọn), phân chia thành 11 Bounded Contexts độc lập và tự bao hàm:
+
+1. **Cấu trúc 4 lớp phân lập nghiêm ngặt trong mỗi Bounded Context:**
+   - **`router.py` (Lớp Giao vận / Controller):** Khai báo các HTTP endpoints chuẩn RESTful, nhận diện phiên người dùng qua JWT và thực thi phân quyền RBAC qua Dependency Injection (`require_roles`).
+   - **`schemas.py` (Lớp Hợp đồng Dữ liệu / DTO):** Sử dụng **Pydantic v2** làm "Nguồn chân lý duy nhất" (Single Source of Truth) để validate dữ liệu đầu vào (Create/Update DTO) và tuần tự hóa dữ liệu phản hồi (Response DTO).
+   - **`service.py` (Lớp Nghiệp vụ / Domain Service):** Chứa toàn bộ logic xử lý nghiệp vụ, tính toán công thức, kiểm tra ràng buộc điều kiện và quản lý giao dịch (DB Transactions).
+   - **`models.py` (Lớp Thực thể / Persistence Layer):** Định nghĩa bảng cơ sở dữ liệu qua **SQLAlchemy 2.0**, kế thừa `TimestampMixin` (tự động lưu `created_at`, `updated_at`) và hỗ trợ xóa an toàn (Soft Delete qua cờ `is_deleted`).
+
+2. **Ba Thuật toán Nghiệp vụ Cốt lõi của Backend:**
+   - **Thuật toán Phát hiện Xung đột Lịch học Thời gian thực (`conflict_checker`):**
+     Hai ca học bị coi là va chạm khi và chỉ khi thỏa mãn điều kiện thời gian:
+     $$\text{Conflict} \iff (\text{start}_A < \text{end}_B) \land (\text{end}_A > \text{start}_B)$$
+     Thuật toán quét đồng thời trên cả 2 tài nguyên: **Phòng học (`classroom_id`)** và **Giảng viên (`teacher_id`)** trên cùng một ngày học (`session_date`), ngăn chặn tuyệt đối tình trạng xếp trùng phòng hoặc giáo viên dạy cùng lúc 2 lớp.
+   - **Thuật toán Tính điểm Trọng số & Khóa Sổ điểm (`grades_calculator`):**
+     Điểm tổng kết môn học được tính tự động theo công thức trọng số chuẩn:
+     $$\text{Điểm tổng kết} = 0.2 \times \text{Chuyên cần} + 0.3 \times \text{Giữa kỳ} + 0.5 \times \text{Cuối kỳ}$$
+     - Học viên được xếp loại **ĐẠT (PASSED)** khi: $\text{Điểm tổng kết} \ge 5.0$ **VÀ** $\text{Điểm cuối kỳ} \ge 4.0$.
+     - Cơ chế Khóa sổ điểm (`is_confirmed = True`) do Học vụ thực hiện: khi đã khóa, hệ thống khóa toàn bộ quyền sửa điểm của giảng viên để đảm bảo tính toàn vẹn dữ liệu đào tạo.
+   - **Thuật toán Kiểm soát Điều kiện Tiên quyết Chuyển khóa (`progression_checker`):**
+     Học viên chỉ được phép đăng ký lên khóa học kế tiếp khi khóa học trước đó đã có kết quả **ĐẠT (PASSED)** và đã được học vụ khóa sổ điểm chính thức.
+
+3. **Bảo mật & Cấp quyền Hệ thống (Security & Authentication):**
+   - Mật khẩu người dùng được băm một chiều an toàn bằng thuật toán **Bcrypt** (Salt rounds = 12).
+   - Xác thực phiên làm việc thông qua **JSON Web Token (JWT)** chuẩn thuật toán `HS256`, thời hạn hiệu lực 24 giờ.
+   - Cơ chế bảo vệ tài khoản tự động: Khóa tạm thời 15 phút nếu phát hiện nhập sai mật khẩu quá 5 lần liên tiếp.
+
+---
+
+### 2.4. Kiến Trúc Dữ Liệu & Lưu Trữ (Database Architecture)
+
+Hệ thống triển khai mô hình cơ sở dữ liệu quan hệ chuẩn 3NF với 12 bảng thực thể chính:
+- **Hỗ trợ Đa nền tảng Cơ sở dữ liệu:**
+  - **SQLite (`language_center.db`):** Zero-config, tích hợp sẵn toàn bộ dữ liệu mẫu, phù hợp chạy kiểm thử cục bộ hoặc chạy demo ngay lập tức.
+  - **PostgreSQL 16:** Được cấu hình sẵn qua Docker Compose kèm script tự động nạp bảng và sequences (`init_postgres.sql`), sẵn sàng triển khai môi trường máy chủ production.
+- **Quản trị Lược đồ & Dữ liệu trực quan:** Tích hợp bộ công cụ **Prisma ORM** (`schema.prisma` và `schema.sqlite.prisma`) cho phép quản lý schema migration và tra cứu dữ liệu qua giao diện web **Prisma Studio** trên cổng `5555`.
 
 ---
 
