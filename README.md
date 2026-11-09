@@ -1,242 +1,285 @@
-# 🎓 SMART-EDU LMS — Hệ Thống Quản Lý Trung Tâm Ngoại Ngữ
+# SMART-EDU LMS
+
+**SMART-EDU LMS** là hệ thống quản lý đào tạo và vận hành trung tâm ngoại ngữ toàn diện theo mô hình hiện đại, tích hợp quản lý tuyển sinh trực tuyến, điều phối lớp học, kiểm soát sĩ số, lập lịch thời khóa biểu tự động phát hiện xung đột tài nguyên, quản lý sổ điểm trọng số chuẩn hóa và theo dõi lộ trình đào tạo học viên liên khóa.
+
+Dự án được xây dựng theo kiến trúc tách rời (**Decoupled Architecture**) giữa **Frontend SPA** hiện đại và **Tầng Cơ sở dữ liệu** độc lập, tuân thủ nghiêm ngặt chuẩn thiết kế Modular Monolith DDD-Lite, sẵn sàng kết nối API linh hoạt với đa nền tảng backend.
 
 ---
 
-## 📖 1. TỔNG QUAN DỰ ÁN
+## 📑 Mục lục
 
-**SMART-EDU LMS** là giải pháp phần mềm toàn diện hỗ trợ số hóa và tự động hóa quy trình quản lý, đào tạo và vận hành tại các Trung tâm Ngoại ngữ. Dự án tập trung giải quyết các bài toán nghiệp vụ trọng yếu: tuyển sinh trực tuyến, điều phối lớp học, kiểm soát sĩ số, lập lịch thời khóa biểu tự động phát hiện xung đột, quản lý sổ điểm trọng số và theo dõi lộ trình đào tạo của học viên.
-
-Phiên bản **VER2** được tái cấu trúc theo mô hình **Decoupled Architecture (Tách rời Frontend & Database)** nhằm tối ưu hóa tính độc lập, khả năng mở rộng và hiệu năng hệ thống:
-- **Frontend SPA Hiện Đại:** Xây dựng trên nền tảng **React 19**, **Vite 8** và **Tailwind CSS v4** theo mô hình *Feature-Driven Architecture*, tối ưu re-render, giao diện phản hồi nhanh và thân thiện trên mọi thiết bị.
-- **Tầng Database Độc Lập:** Tách biệt cơ sở dữ liệu quan hệ với đầy đủ lược đồ chuẩn hóa 3NF, hỗ trợ song song **SQLite** (phát triển nhanh không cần cấu hình) và **PostgreSQL 16** (container hóa với Docker Compose sẵn sàng cho môi trường production).
-- **Sẵn Sàng Tích Hợp API:** Lớp dịch vụ API (`api.js`) với cơ chế Axios Interceptors xử lý JWT Bearer Token tập trung, chuẩn hóa request/response và dễ dàng kết nối tới bất kỳ nền tảng Backend nào (FastAPI, Express, Spring Boot, NestJS...).
+1. [Kiến trúc & Công nghệ sử dụng](#-kiến-trúc--công-nghệ-sử-dụng)
+2. [Hệ thống giao diện & Luồng nghiệp vụ chính](#-hệ-thống-giao-diện--luồng-nghiệp-vụ-chính)
+3. [Quy tắc nghiệp vụ & Ba thuật toán cốt lõi](#-quy-tắc-nghiệp-vụ--ba-thuật-toán-cốt-lõi)
+4. [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
+5. [Hướng dẫn cài đặt & Chạy phát triển (Quick Start)](#-hướng-dẫn-cài-đặt--chạy-phát-triển-quick-start)
+6. [Quản trị Cơ sở dữ liệu & Seed Data](#-quản-trị-cơ-sở-dữ-liệu--seed-data)
+7. [Chạy toàn bộ bằng Docker Compose](#-chạy-toàn-bộ-bằng-docker-compose)
+8. [Kiểm tra & Xem dữ liệu Database](#-kiểm-tra--xem-dữ-liệu-database)
+9. [Bảng tra cứu lệnh chung](#-bảng-tra-cứu-lệnh-chung)
+10. [Cấu trúc thư mục & Tài liệu thiết kế](#-cấu-trúc-thư-mục--tài-liệu-thiết-kế)
+11. [Xử lý lỗi thường gặp (Troubleshooting)](#-xử-lý-lỗi-thường-gặp-troubleshooting)
 
 ---
 
-## 🏛️ 2. KIẾN TRÚC HỆ THỐNG
+## 🛠 Kiến trúc & Công nghệ sử dụng
 
-### 2.1. Kiến Trúc Tổng Thể (System Architecture)
+| Tầng (Layer) | Công nghệ chính | Vai trò trong dự án |
+| --- | --- | --- |
+| **Frontend (`frontend/`)** | React 19, Vite 8, Tailwind CSS v4, Axios, Lucide React | Giao diện SPA hiện đại theo chuẩn **Operate Mode** (tối ưu nhập liệu liên tục, `JetBrains Mono` + `tabular-nums` cho số liệu, Semantic Status Badges, Toast feedback không chặn luồng), quản lý phiên đăng nhập `AuthContext` và phân quyền RBAC 5 vai trò. |
+| **Backend Specification (`docs/`)** | FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy 2.0, Bcrypt, PyJWT | Đặc tả kiến trúc Modular Monolith DDD-Lite với 11 Bounded Contexts tự bao hàm (`router -> schema -> service -> model`), thực thi 3 thuật toán nghiệp vụ cốt lõi, bảo mật mật khẩu Bcrypt và xác thực JWT Bearer token 24h. |
+| **Database (`database/` & `prisma/`)** | SQLite 3 (`language_center.db`), PostgreSQL 16, Prisma ORM 6 | Lưu trữ quan hệ chuẩn 3NF với 12 bảng thực thể. Hỗ trợ song song SQLite cục bộ (zero-config, có sẵn seed data) và PostgreSQL 16 container hóa sẵn sàng cho production. |
+| **Hạ tầng & DevTools** | Docker Compose, Vite HMR, Prisma Studio | Môi trường container hóa dịch vụ database, script khởi động nhanh một chạm trên Windows (`start_frontend.bat`), trực quan hóa dữ liệu qua web UI Prisma Studio. |
 
-Hệ thống được tổ chức theo mô hình phân tầng chuẩn mực, phân tách độc lập giữa **Frontend SPA**, **Lớp Giao tiếp Dịch vụ (API Service Layer)** và **Tầng Cơ sở Dữ liệu & Lưu trữ**:
+---
 
-```mermaid
-flowchart TD
-    subgraph Frontend_App["🖥️ FRONTEND CLIENT (React 19 + Vite 8 + Tailwind CSS v4)"]
-        direction TB
-        UI_Layer["Tầng Giao Diện & Trình Diễn<br/>(Components, Modals, DataTables, Badges, Dropdowns)"]
-        Views_Layer["Tầng Nghiệp Vụ Giao Diện (Feature Views)<br/>(Auth, Courses, Classes, Schedules, Grades, Progression, Parent Portal)"]
-        State_Layer["Tầng Quản Trị Trạng Thái & Điều Hướng<br/>(App Router, RBAC Route Guards, AuthContext, ToastContext)"]
-        Service_Layer["Tầng Giao Tiếp Dịch Vụ (API Services)<br/>(Axios Client, JWT Interceptors, Domain API Modules)"]
+## 🌿 Hệ thống giao diện & Luồng nghiệp vụ chính
 
-        UI_Layer --> Views_Layer
-        Views_Layer --> State_Layer
-        State_Layer --> Service_Layer
-    end
+### Các màn hình chức năng (Frontend Views & Routes)
 
-    subgraph Backend_App["⚙️ BACKEND SPECIFICATION (FastAPI Modular Monolith DDD-Lite)"]
-        direction TB
-        Router_Layer["Router / Controller Layer (HTTP, JWT Auth, RBAC Guards)"]
-        Schema_Layer["Schema / DTO Layer (Pydantic v2 Request/Response Validation)"]
-        Service_Domain["Domain Service Layer (Business Logic & Core Algorithms)"]
-        ORM_Models["ORM Persistence Layer (SQLAlchemy 2.0 Models, Soft Delete, Audits)"]
+Toàn bộ 11 phân hệ giao diện được tổ chức theo triết lý **Feature-Driven Architecture** trong `frontend/src/views/`:
 
-        Router_Layer --> Schema_Layer
-        Schema_Layer --> Service_Domain
-        Service_Domain --> ORM_Models
-    end
+| Phân hệ / Màn hình | View Component | Vai trò & Nghiệp vụ chi tiết |
+| --- | --- | --- |
+| **Xác thực & Hồ sơ** | `LoginView.jsx` | Đăng nhập hệ thống bằng tài khoản/mật khẩu băm Bcrypt, giải mã JWT Bearer token, tự động nhận diện 1 trong 5 vai trò (Admin, Staff, Teacher, Student, Parent). |
+| **Quản trị Tài khoản** | `AccountsView.jsx` | Quản lý người dùng, phân quyền RBAC, cấp phát lại mật khẩu và khóa tài khoản vi phạm. |
+| **Khóa học & Học phí** | `CoursesView.jsx` | Thiết lập chương trình đào tạo, thời lượng (tuần), biểu phí chuẩn và chuẩn đầu ra (Target Level). |
+| **Hồ sơ Học viên** | `StudentsView.jsx` | Quản lý thông tin học viên, tra cứu lịch sử đào tạo, lớp đang theo học và gắn kết mã phụ huynh. |
+| **Hồ sơ Giảng viên** | `TeachersView.jsx` | Danh sách giảng viên, chuyên môn đào tạo, liên kết lớp phụ trách và lịch giảng dạy. |
+| **Điều phối Lớp học** | `ClassesView.jsx` | Quản lý danh sách lớp, ngày khai giảng/kết thúc, kiểm soát sĩ số thực tế (`enrolled/capacity`) và cảnh báo đầy lớp. |
+| **Phòng học & Cơ sở** | `ClassroomsView.jsx` | Quản lý danh mục phòng học, sức chứa tối đa, trang thiết bị hỗ trợ và trạng thái sẵn sàng sử dụng. |
+| **Tuyển sinh & Đăng ký** | `EnrollmentsView.jsx` | Tiếp nhận đơn đăng ký nhập học trực tuyến, xét duyệt học viên vào lớp hoặc từ chối kèm lý do phản hồi. |
+| **Xếp lịch & TKB** | `SchedulesView.jsx` | Lập lịch thời khóa biểu từng buổi học, tích hợp thuật toán phát hiện va chạm lịch phòng học & giáo viên theo thời gian thực. |
+| **Sổ điểm & Đánh giá** | `GradesView.jsx` | Bảng nhập điểm chi tiết (Chuyên cần, Giữa kỳ, Cuối kỳ), tự động tính điểm tổng kết theo trọng số, xếp loại và chốt khóa sổ điểm (`is_confirmed`). |
+| **Cổng Phụ huynh & Lên khóa** | `ProgressionParentView.jsx` | Cổng thông tin phụ huynh tra cứu tiến độ con em, đồng thời thẩm định điều kiện tiên quyết để xét duyệt học viên nâng khóa học tiếp theo. |
 
-    subgraph Storage_Layer["🗄️ TẦNG CƠ SỞ DỮ LIỆU & LƯU TRỮ (Database Layer)"]
-        direction LR
-        SQLiteDB[("SQLite Database<br/>(language_center.db)")]
-        PostgresDB[("PostgreSQL 16<br/>(Docker Container)")]
-        PrismaStudio["Prisma Studio GUI<br/>(Port 5555)"]
-        SQLiteDB --- PrismaStudio
-        PostgresDB --- PrismaStudio
-    end
+---
 
-    Service_Layer ==>|"HTTP REST API Requests (/api/v1)"| Router_Layer
-    ORM_Models ==>|"SQL Queries / Connection Pool"| Storage_Layer
+## 📐 Quy tắc nghiệp vụ & Ba thuật toán cốt lõi
 
-    classDef fe fill:#2563EB,stroke:#1D4ED8,stroke-width:2px,color:#fff;
-    classDef be fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
-    classDef db fill:#D97706,stroke:#B45309,stroke-width:2px,color:#fff;
-    class UI_Layer,Views_Layer,State_Layer,Service_Layer fe;
-    class Router_Layer,Schema_Layer,Service_Domain,ORM_Models be;
-    class SQLiteDB,PostgresDB,PrismaStudio db;
+### 1. Thuật toán Phát hiện Xung đột Thời khóa biểu (Conflict Checker)
+Khi xếp lịch ca học cho một buổi học (`session_date`), hệ thống kiểm tra điều kiện giao thoa khoảng thời gian:
+```text
+Va chạm lịch <=> (Start_A < End_B) VÀ (End_A > Start_B)
+```
+- **Ràng buộc kép:** Thuật toán quét đồng thời trên cả 2 tài nguyên trong cùng ngày học:
+  1. **Phòng học (`classroom_id`):** Một phòng học không thể xếp 2 lớp khác nhau vào cùng một khung giờ.
+  2. **Giảng viên (`teacher_id`):** Một giáo viên không thể đứng lớp tại 2 địa điểm/lớp khác nhau trong cùng thời điểm.
+- Bất kỳ yêu cầu xếp lịch nào vi phạm sẽ bị từ chối ngay lập tức và đưa ra cảnh báo chính xác nguyên nhân xung đột.
+
+### 2. Thuật toán Tính điểm Trọng số & Cơ chế Khóa sổ điểm (Grades Calculator)
+Điểm số môn học được chuẩn hóa theo công thức trọng số đào tạo:
+```text
+Điểm tổng kết = (Chuyên cần x 0.2) + (Giữa kỳ x 0.3) + (Cuối kỳ x 0.5)
+Xếp loại ĐẠT (PASSED) <=> (Điểm tổng kết >= 5.0) VÀ (Điểm cuối kỳ >= 4.0)
+```
+- **Cơ chế Khóa sổ (`is_confirmed = True`):** Sau khi giảng viên nhập điểm, nhân viên Học vụ tiến hành thẩm định và bấm **Khóa sổ điểm**. Khi đã khóa, toàn bộ quyền chỉnh sửa điểm của giảng viên bị đóng băng vĩnh viễn nhằm đảm bảo tính toàn vẹn dữ liệu.
+
+### 3. Thuật toán Kiểm soát Điều kiện Tiên quyết Chuyển khóa (Progression Checker)
+- Học viên chỉ đủ điều kiện đăng ký hoặc được chuyển tiếp lên khóa học kế tiếp trong lộ trình đào tạo khi khóa học tiên quyết đáp ứng đủ 2 tiêu chí bắt buộc:
+  1. Trạng thái kết quả đạt **`PASSED`** (đạt cả điểm tổng kết và điểm sàn thi cuối kỳ).
+  2. Sổ điểm của khóa học đó đã được nhân viên Học vụ **khóa sổ chính thức** (`is_confirmed = True`).
+
+### 4. An ninh & Xác thực Hệ thống
+- Mật khẩu người dùng được băm an toàn 1 chiều bằng thuật toán **Bcrypt** (Salt rounds = 12).
+- Xác thực phiên làm việc thông qua **JSON Web Token (JWT)** chuẩn thuật toán `HS256`, thời hạn hiệu lực 24 giờ.
+- Cơ chế bảo vệ tài khoản: Tự động khóa tài khoản tạm thời 15 phút nếu phát hiện nhập sai mật khẩu quá 5 lần liên tiếp.
+
+---
+
+## 💻 Yêu cầu hệ thống
+
+- **Node.js:** Phiên bản `18.x` trở lên (Khuyên dùng `20+` LTS) và `npm`.
+- **Cơ sở dữ liệu:** Tùy chọn 1 trong 2:
+  - **SQLite 3:** Tích hợp sẵn trong repo, chạy ngay không cần cài đặt.
+  - **Docker Desktop & Docker Compose:** Nếu muốn chạy PostgreSQL 16 container hóa.
+- **Cổng mạng mặc định:**
+  - Frontend SPA (React + Vite): `http://localhost:5173`
+  - Prisma Studio GUI: `http://localhost:5555`
+  - PostgreSQL Database (Docker): `localhost:5432`
+
+---
+
+## 🚀 Hướng dẫn cài đặt & Chạy phát triển (Quick Start)
+
+Mở **PowerShell** hoặc **Terminal** tại thư mục gốc của dự án `SMART-EDU-VER2` và thực hiện:
+
+### Bước 1: Cài đặt thư viện phụ thuộc Frontend
+
+```powershell
+cd frontend
+npm install
 ```
 
----
+### Bước 2: Khởi chạy ứng dụng Frontend (React 19)
 
-### 2.2. Chi Tiết Kiến Trúc Frontend (React 19 / Feature-Driven Architecture)
+```powershell
+npm run dev
+```
 
-Frontend được cấu trúc theo triết lý **Feature-Driven Architecture** kết hợp tiêu chuẩn thiết kế **Operate Mode** (tối ưu năng suất cho người vận hành nhập liệu liên tục):
+*(Trên môi trường Windows, bạn cũng có thể nhấp đúp trực tiếp vào tệp `start_frontend.bat` ở thư mục gốc để khởi chạy ứng dụng 1 chạm).*
 
-1. **Tầng Giao diện & Trình diễn (Presentation Layer):**
-   - **Thư viện nền tảng:** React 19.3+, Vite 8 (Hot Module Replacement siêu tốc), Tailwind CSS v4.
-   - **Tổ chức theo tính năng (`src/views/`):** Mỗi phân hệ là một View độc lập (`CoursesView`, `ClassesView`, `SchedulesView`, `GradesView`, `ProgressionParentView`...), không phụ thuộc chéo, dễ bảo trì và mở rộng.
-   - **Hệ thống Component dùng chung (`src/components/`):** Các khối giao diện tiêu chuẩn gồm Header Navbar, Sidebar phân nhóm theo vai trò, Modal xác nhận, Data Table hỗ trợ phân trang và tìm kiếm nhanh.
-   - **Chuẩn hiển thị số liệu & Trạng thái:** Sử dụng phông chữ `JetBrains Mono` kết hợp `tabular-nums` cho các cột điểm số, học phí và sĩ số; sử dụng thẻ trạng thái ngữ nghĩa (Semantic Badges) với chấm màu tín hiệu giúp quét thông tin nhanh (Scanability).
+### Bước 3: Truy cập hệ thống
 
-2. **Tầng Quản lý Trạng thái & Phân quyền (State & Routing Layer):**
-   - **`AuthContext.jsx`:** Quản lý tập trung trạng thái đăng nhập, giải mã JWT Bearer token, tự động khôi phục phiên từ `localStorage` và cung cấp quyền hạn cho toàn bộ cây component.
-   - **Kiểm soát truy cập theo vai trò (RBAC Route Guard):** Tự động điều hướng và chỉ hiển thị các màn hình mà người dùng hiện tại có quyền thao tác (Admin, Staff, Teacher, Student, Parent).
-   - **`ToastContext.jsx`:** Cơ chế thông báo nổi (non-blocking notification) tự động ẩn sau 4 giây, loại bỏ hoàn toàn các hộp thoại `alert()` gây gián đoạn luồng làm việc.
-
-3. **Tầng Kết nối Dịch vụ (Service & API Client Layer):**
-   - **Axios Client tập trung (`src/services/api.js`):** Khởi tạo instance kết nối thống nhất với tiền tố `/api/v1`.
-   - **Request Interceptor:** Tự động đính kèm `Authorization: Bearer <token>` vào mọi yêu cầu gửi đi.
-   - **Response Interceptor:** Bắt lỗi tập trung (xử lý lỗi `401 Unauthorized` tự động xóa token và chuyển về trang đăng nhập; trích xuất chi tiết thông báo lỗi từ server để hiển thị Toast).
+- Mở trình duyệt và truy cập: **`http://localhost:5173`**
+- Trải nghiệm giao diện quản trị đầy đủ của hệ thống.
 
 ---
 
-### 2.3. Chi Tiết Kiến Trúc Backend (Modular Monolith & DDD-Lite)
+## 🌱 Quản trị Cơ sở dữ liệu & Seed Data
 
-Backend của hệ thống được quy hoạch và thiết kế theo kiến trúc **Modular Monolith & DDD-Lite** (Domain-Driven Design rút gọn), phân chia thành 11 Bounded Contexts độc lập và tự bao hàm:
+Hệ thống hỗ trợ song song 2 tùy chọn lưu trữ dữ liệu quan hệ (12 bảng thực thể chuẩn 3NF):
 
-1. **Cấu trúc 4 lớp phân lập nghiêm ngặt trong mỗi Bounded Context:**
-   - **`router.py` (Lớp Giao vận / Controller):** Khai báo các HTTP endpoints chuẩn RESTful, nhận diện phiên người dùng qua JWT và thực thi phân quyền RBAC qua Dependency Injection (`require_roles`).
-   - **`schemas.py` (Lớp Hợp đồng Dữ liệu / DTO):** Sử dụng **Pydantic v2** làm "Nguồn chân lý duy nhất" (Single Source of Truth) để validate dữ liệu đầu vào (Create/Update DTO) và tuần tự hóa dữ liệu phản hồi (Response DTO).
-   - **`service.py` (Lớp Nghiệp vụ / Domain Service):** Chứa toàn bộ logic xử lý nghiệp vụ, tính toán công thức, kiểm tra ràng buộc điều kiện và quản lý giao dịch (DB Transactions).
-   - **`models.py` (Lớp Thực thể / Persistence Layer):** Định nghĩa bảng cơ sở dữ liệu qua **SQLAlchemy 2.0**, kế thừa `TimestampMixin` (tự động lưu `created_at`, `updated_at`) và hỗ trợ xóa an toàn (Soft Delete qua cờ `is_deleted`).
+### Tùy chọn A: Sử dụng SQLite (Mặc định — Zero Config)
 
-2. **Ba Thuật toán Nghiệp vụ Cốt lõi của Backend:**
-   - **Thuật toán Phát hiện Xung đột Lịch học Thời gian thực (`conflict_checker`):**
-     Hai ca học bị coi là va chạm khi và chỉ khi thỏa mãn điều kiện thời gian:
-     $$\text{Conflict} \iff (\text{start}_A < \text{end}_B) \land (\text{end}_A > \text{start}_B)$$
-     Thuật toán quét đồng thời trên cả 2 tài nguyên: **Phòng học (`classroom_id`)** và **Giảng viên (`teacher_id`)** trên cùng một ngày học (`session_date`), ngăn chặn tuyệt đối tình trạng xếp trùng phòng hoặc giáo viên dạy cùng lúc 2 lớp.
-   - **Thuật toán Tính điểm Trọng số & Khóa Sổ điểm (`grades_calculator`):**
-     Điểm tổng kết môn học được tính tự động theo công thức trọng số chuẩn:
-     $$\text{Điểm tổng kết} = 0.2 \times \text{Chuyên cần} + 0.3 \times \text{Giữa kỳ} + 0.5 \times \text{Cuối kỳ}$$
-     - Học viên được xếp loại **ĐẠT (PASSED)** khi: $\text{Điểm tổng kết} \ge 5.0$ **VÀ** $\text{Điểm cuối kỳ} \ge 4.0$.
-     - Cơ chế Khóa sổ điểm (`is_confirmed = True`) do Học vụ thực hiện: khi đã khóa, hệ thống khóa toàn bộ quyền sửa điểm của giảng viên để đảm bảo tính toàn vẹn dữ liệu đào tạo.
-   - **Thuật toán Kiểm soát Điều kiện Tiên quyết Chuyển khóa (`progression_checker`):**
-     Học viên chỉ được phép đăng ký lên khóa học kế tiếp khi khóa học trước đó đã có kết quả **ĐẠT (PASSED)** và đã được học vụ khóa sổ điểm chính thức.
+Cơ sở dữ liệu SQLite đã được dựng sẵn và nạp dữ liệu mẫu tại:
+`database/language_center.db`
 
-3. **Bảo mật & Cấp quyền Hệ thống (Security & Authentication):**
-   - Mật khẩu người dùng được băm một chiều an toàn bằng thuật toán **Bcrypt** (Salt rounds = 12).
-   - Xác thực phiên làm việc thông qua **JSON Web Token (JWT)** chuẩn thuật toán `HS256`, thời hạn hiệu lực 24 giờ.
-   - Cơ chế bảo vệ tài khoản tự động: Khóa tạm thời 15 phút nếu phát hiện nhập sai mật khẩu quá 5 lần liên tiếp.
-
----
-
-### 2.4. Kiến Trúc Dữ Liệu & Lưu Trữ (Database Architecture)
-
-Hệ thống triển khai mô hình cơ sở dữ liệu quan hệ chuẩn 3NF với 12 bảng thực thể chính:
-- **Hỗ trợ Đa nền tảng Cơ sở dữ liệu:**
-  - **SQLite (`language_center.db`):** Zero-config, tích hợp sẵn toàn bộ dữ liệu mẫu, phù hợp chạy kiểm thử cục bộ hoặc chạy demo ngay lập tức.
-  - **PostgreSQL 16:** Được cấu hình sẵn qua Docker Compose kèm script tự động nạp bảng và sequences (`init_postgres.sql`), sẵn sàng triển khai môi trường máy chủ production.
-- **Quản trị Lược đồ & Dữ liệu trực quan:** Tích hợp bộ công cụ **Prisma ORM** (`schema.prisma` và `schema.sqlite.prisma`) cho phép quản lý schema migration và tra cứu dữ liệu qua giao diện web **Prisma Studio** trên cổng `5555`.
-
----
-
-## 🚀 3. HƯỚNG DẪN KHỞI CHẠY (QUICK START)
-
-### Yêu cầu môi trường:
-- **Node.js**: Phiên bản `18.x` trở lên (Khuyên dùng `20+` LTS).
-- **Trình duyệt hiện đại**: Chrome, Edge, Firefox, Brave.
-- *(Tùy chọn)* **Docker & Docker Desktop**: Nếu muốn chạy PostgreSQL 16.
-
----
-
-### Bước 1: Khởi động Ứng dụng Web Frontend (React 19)
-
-1. Cài đặt các thư viện phụ thuộc:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. Khởi chạy máy chủ phát triển (Development Server):
-   ```bash
-   npm run dev
-   ```
-   Hoặc trên Windows chỉ cần nhấp đúp vào tệp: **[`start_frontend.bat`](file:///d:/Smart-edu/start_frontend.bat)**.
-
-3. Mở trình duyệt và truy cập:
-   👉 **`http://localhost:5173`**
-
----
-
-### Bước 2: Tùy chọn Cơ sở dữ liệu (Database Layer)
-
-Hệ thống cung cấp sẵn hai tùy chọn cơ sở dữ liệu linh hoạt:
-
-#### 🔹 Tùy chọn A: Sử dụng SQLite (Zero-config, không cần cài đặt)
-File cơ sở dữ liệu SQLite đã được tạo sẵn tại [`database/language_center.db`](file:///d:/Smart-edu/database/language_center.db) chứa đầy đủ 12 bảng và dữ liệu khởi tạo.
-- Xem trực tiếp bằng DBeaver, TablePlus hoặc SQLite Viewer.
-- Hoặc mở giao diện trực quan **Prisma Studio**:
-  ```bash
+- **Nội dung dữ liệu mẫu sẵn có:**
+  - Danh mục người dùng thuộc đầy đủ 5 vai trò: `ADMIN`, `STAFF`, `TEACHER`, `STUDENT`, `PARENT`.
+  - Danh mục khóa học chuẩn (IELTS, TOEIC, Giao tiếp), biểu phí và chuẩn đầu ra.
+  - Danh sách phòng học, sức chứa và cơ sở vật chất.
+  - Các lớp học đang vận hành, danh sách phân bổ học viên vào lớp và đơn đăng ký nhập học.
+  - Lịch học mẫu không xung đột và bảng điểm kiểm thử công thức trọng số.
+- Để tra cứu trực quan dữ liệu SQLite trên trình duyệt:
+  ```powershell
   npm run prisma:sqlite:studio
   ```
-  Truy cập: `http://localhost:5555`
+  Trình duyệt mở tại: `http://localhost:5555`
 
-#### 🔹 Tùy chọn B: Sử dụng PostgreSQL 16 qua Docker
-Tệp [`docker-compose.yml`](file:///d:/Smart-edu/docker-compose.yml) đã được cấu hình tự động ánh xạ script [`database/init_postgres.sql`](file:///d:/Smart-edu/database/init_postgres.sql) khi container khởi động:
-```bash
-docker compose up -d
-```
-- **Host:** `localhost:5432`
-- **Database:** `language_center`
-- **User:** `postgres`
-- **Password:** `postgrespassword2026`
+### Tùy chọn B: Sử dụng PostgreSQL 16
+
+Nếu muốn triển khai trên hệ quản trị cơ sở dữ liệu mạnh mẽ phục vụ production:
+- Khởi động service qua Docker Compose (xem mục tiếp theo).
+- File khởi tạo dữ liệu tự động: `database/init_postgres.sql` (chứa toàn bộ DDL tạo bảng, ràng buộc khóa ngoại, seed data và đồng bộ sequence khóa chính).
 
 ---
 
-## 📂 4. CẤU TRÚC DỰ ÁN (PROJECT STRUCTURE)
+## 🐳 Chạy toàn bộ bằng Docker Compose
+
+Dự án cung cấp cấu hình `docker-compose.yml` định nghĩa sẵn môi trường PostgreSQL 16 chính quy:
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+- **Cơ chế tự động:** Khi container khởi động lần đầu, Docker sẽ tự động mount tệp `database/init_postgres.sql` vào `/docker-entrypoint-initdb.d/`, tự động tạo toàn bộ bảng và nạp dữ liệu mẫu hoàn chỉnh.
+- Dữ liệu được lưu trữ bền vững trong Docker volume `pgdata`. Lệnh `docker compose down` sẽ giải phóng tài nguyên mà không làm mất dữ liệu.
+
+---
+
+## 🗄 Kiểm tra & Xem dữ liệu Database
+
+Bạn có thể kiểm tra trực tiếp dữ liệu cơ sở dữ liệu theo 3 phương thức:
+
+1. **Dùng Prisma Studio (Giao diện Web trực quan — Khuyên dùng):**
+   - Với SQLite:
+     ```powershell
+     npm run prisma:sqlite:studio
+     ```
+   - Với PostgreSQL:
+     ```powershell
+     npm run prisma:studio
+     ```
+   Trình duyệt mở tại **`http://localhost:5555`**, cho phép tra cứu, tìm kiếm và lọc dữ liệu trên cả 12 bảng thực thể.
+
+2. **Dùng công cụ quản lý cơ sở dữ liệu chuyên dụng (DBeaver, TablePlus, DataGrip):**
+   - **SQLite:** Mở trực tiếp tệp `database/language_center.db`.
+   - **PostgreSQL 16:**
+     - **Host:** `localhost` | **Port:** `5432`
+     - **Database:** `language_center` | **Username:** `postgres` | **Password:** `postgrespassword2026`
+     - **URL kết nối:** `postgresql://postgres:postgrespassword2026@localhost:5432/language_center?schema=public`
+
+3. **Dùng dòng lệnh trong Docker container:**
+   ```powershell
+   docker compose exec db psql -U postgres -d language_center
+   ```
+
+---
+
+## ⌨️ Bảng tra cứu lệnh chung
+
+| Lệnh | Công dụng | Môi trường / Thư mục |
+| --- | --- | --- |
+| `npm run dev` | Khởi chạy máy chủ phát triển Frontend React 19 tại `http://localhost:5173` | Chạy tại `frontend/` |
+| `npm run build` | Biên dịch tối ưu hóa mã nguồn Frontend để triển khai Production | Chạy tại `frontend/` |
+| `npm run preview` | Chạy thử nghiệm bản build Production của Frontend cục bộ | Chạy tại `frontend/` |
+| `docker compose up -d` | Khởi động container PostgreSQL 16 nền và tự động nạp `init_postgres.sql` | Chạy tại thư mục gốc |
+| `docker compose down` | Dừng và hủy các container Docker cơ sở dữ liệu | Chạy tại thư mục gốc |
+| `npm run prisma:sqlite:studio` | Mở giao diện Prisma Studio tra cứu Database SQLite tại `http://localhost:5555` | Chạy tại thư mục gốc |
+| `npm run prisma:studio` | Mở giao diện Prisma Studio tra cứu Database PostgreSQL tại `http://localhost:5555` | Chạy tại thư mục gốc |
+| `npm run prisma:seed` | Thực thi nạp lại dữ liệu mẫu thông qua Prisma Client Script | Chạy tại thư mục gốc |
+| `start_frontend.bat` | Script nhấp đúp 1-click khởi chạy nhanh Frontend trên hệ điều hành Windows | Chạy tại thư mục gốc |
+
+---
+
+## 📂 Cấu trúc thư mục & Tài liệu thiết kế
 
 ```text
 SMART-EDU-VER2/
-├── .agents/                    # Bộ quy chuẩn Agent Skills & Workflow hướng đối tượng
+├── frontend/                   # Ứng dụng Web Single Page Application (React 19 + Vite)
+│   ├── src/
+│   │   ├── components/         # Các UI component tái sử dụng (Navbar, Sidebar, Modal, DataTable)
+│   │   ├── context/            # AuthContext (quản lý phiên & JWT), ToastContext (thông báo nổi)
+│   │   ├── services/           # api.js tập trung gọi API qua Axios Interceptors
+│   │   ├── views/              # 11 Views phân hệ nghiệp vụ tương ứng
+│   │   ├── App.jsx             # Điều hướng router và bố cục ứng dụng theo phân quyền
+│   │   └── main.jsx            # Entry point của React 19
+│   ├── package.json            # Cấu hình dependencies (React 19, Tailwind v4, Lucide React)
+│   └── vite.config.js          # Cấu hình Vite bundler & Dev server
 ├── database/                   # Module Cơ sở dữ liệu độc lập
-│   ├── language_center.db      # Cơ sở dữ liệu SQLite binary nguyên bản (12 bảng + seed data)
+│   ├── language_center.db      # CSDL SQLite binary nguyên bản (12 bảng + seed data sẵn)
 │   ├── language_center_dump.sql# Bản xuất DDL & DML hoàn chỉnh theo chuẩn SQLite
 │   ├── init_postgres.sql       # Script khởi tạo tự động tương thích PostgreSQL 16+
-│   └── README.md               # Tài liệu hướng dẫn chi tiết kiến trúc Database
-├── docs/                       # Tài liệu thiết kế hệ thống chuyên sâu
-│   ├── DATABASE_DESIGN.md      # Chi tiết lược đồ ERD, quan hệ khóa ngoại và kiểu dữ liệu
-│   ├── SYSTEM_DESIGN.md        # Thiết kế kiến trúc tổng thể, luồng nghiệp vụ và bảo mật
-│   ├── ISSUES.md               # Đặc tả 11 Core Business Issues & Acceptance Criteria
-│   └── DESIGN.md               # Nguyên lý thiết kế hướng đối tượng OOAD & DDD-Lite
-├── frontend/                   # Ứng dụng Web Single Page Application (React 19 + Vite)
-│   ├── public/                 # Favicons, assets tĩnh và icons SVG
-│   ├── src/
-│   │   ├── assets/             # Hình ảnh và đồ họa giao diện
-│   │   ├── components/         # Các UI component dùng chung (Navbar, Modal, Tables, Badges)
-│   │   ├── context/            # AuthContext quản lý trạng thái phiên làm việc & JWT
-│   │   ├── services/           # api.js tập trung gọi API qua Axios
-│   │   ├── views/              # Các màn hình phân hệ chức năng tương ứng
-│   │   ├── App.jsx             # Điều hướng router và bố cục ứng dụng
-│   │   └── main.jsx            # Entry point của React 19
-│   ├── package.json            # Cấu hình dependencies Frontend (React 19, Tailwind v4)
-│   └── vite.config.js          # Cấu hình Vite build tool
-├── prisma/                     # Lược đồ Prisma ORM
-│   ├── schema.prisma           # Cấu hình cho PostgreSQL
-│   ├── schema.sqlite.prisma    # Cấu hình cho SQLite cục bộ
+│   └── README.md               # Hướng dẫn chi tiết kỹ thuật CSDL
+├── prisma/                     # Lược đồ ORM & Quản trị Migration
+│   ├── schema.prisma           # Cấu hình lược đồ cho PostgreSQL
+│   ├── schema.sqlite.prisma    # Cấu hình lược đồ cho SQLite cục bộ
 │   └── seed.js                 # Script nạp dữ liệu mẫu đa nền tảng
-├── docker-compose.yml          # Dịch vụ PostgreSQL 16 container tự động nạp init.sql
+├── docs/                       # Tài liệu thiết kế hệ thống chuyên sâu
+│   ├── SYSTEM_DESIGN.md        # Thiết kế kiến trúc tổng thể, luồng nghiệp vụ & bảo mật
+│   ├── DATABASE_DESIGN.md      # Chi tiết lược đồ ERD, quan hệ khóa ngoại và kiểu dữ liệu
+│   ├── ISSUES.md               # Đặc tả 11 Core Business Issues & Tiêu chí nghiệm thu
+│   └── DESIGN.md               # Nguyên lý thiết kế hướng đối tượng OOAD & DDD-Lite
+├── .agents/                    # Bộ quy chuẩn Agent Skills & Workflow phát triển
+├── docker-compose.yml          # Cấu hình dịch vụ PostgreSQL 16 container tự nạp init.sql
 ├── package.json                # Quản lý scripts Prisma toàn cục cho dự án
 ├── start_frontend.bat          # Script 1-click khởi chạy nhanh Frontend trên Windows
 └── README.md                   # Tài liệu hướng dẫn sử dụng chính của dự án
 ```
 
----
-
-## 🛠️ 5. CÔNG NGHỆ SỬ DỤNG (TECH STACK)
-
-| Thành phần | Công nghệ | Phiên bản | Mô tả vai trò |
-|---|---|:---:|---|
-| **Core UI Library** | React | `19.3.1` | Thư viện UI hiện đại, tối ưu hóa re-render và state management. |
-| **Build Tool** | Vite | `8.3.4` | Trình biên dịch siêu tốc với cơ chế Hot Module Replacement (HMR). |
-| **Styling** | Tailwind CSS | `v4.3` | Tiện ích CSS thế hệ mới, giao diện tinh tế, hỗ trợ Dark/Light responsive. |
-| **Icons** | Lucide React | `1.60.0` | Bộ biểu tượng vector nhất quán, sắc nét theo chuẩn chuyên nghiệp. |
-| **HTTP Client** | Axios | `1.20.0` | Kết nối API, xử lý JWT Bearer token và xử lý lỗi tập trung qua Interceptors. |
-| **Database** | PostgreSQL / SQLite | `16` / `3` | Lưu trữ dữ liệu quan hệ, đảm bảo tính toàn vẹn và ràng buộc nghiệp vụ. |
-| **ORM Tool** | Prisma | `6.4.1` | Quản trị schema, database migration và trực quan hóa dữ liệu qua Prisma Studio. |
+**Nguyên tắc cấu trúc & Mở rộng:**
+- Giao diện người dùng được phân tách triệt để giữa tầng trình diễn (`components/`), tầng điều hướng/trạng thái (`context/`, `App.jsx`) và tầng kết nối mạng (`services/api.js`).
+- Toàn bộ 82 yêu cầu chức năng nghiệp vụ (FR-01 đến FR-82) và 11 Bounded Contexts đã được ánh xạ thành 11 GitHub Issues chính thức trên repository: [tenki1612/SMART-EDU-VER2/issues](https://github.com/tenki1612/SMART-EDU-VER2/issues).
+- Bất kỳ dịch vụ Backend mới nào (FastAPI, Express, NestJS, Spring Boot) chỉ cần triển khai theo hợp đồng endpoints chuẩn trong `docs/SYSTEM_DESIGN.md` và `docs/ISSUES.md` là có thể tích hợp ngay lập tức với Frontend.
 
 ---
 
-## 📄 6. BẢN QUYỀN & THÔNG TIN
+## 🔧 Xử lý lỗi thường gặp (Troubleshooting)
 
-Dự án được xây dựng phục vụ nghiên cứu, học tập và triển khai thực tế hệ thống Quản lý Đào tạo Ngoại ngữ.
+1. **Frontend không thể kết nối tới Backend API (`Network Error` / `401 Unauthorized`):**
+   - Kiểm tra xem máy chủ backend API đã được khởi chạy hay chưa.
+   - Kiểm tra cấu hình địa chỉ API trong `frontend/src/services/api.js` (mặc định trỏ đến `/api/v1` hoặc máy chủ trung gian).
+   - Nếu bị lỗi xác thực 401, hãy đăng xuất và đăng nhập lại để hệ thống cập nhật JWT Bearer token mới vào `localStorage`.
+
+2. **Lỗi xung đột cổng mạng (`EADDRINUSE` trên cổng `5173`, `5555` hoặc `5432`):**
+   - Cổng `5173`: Đang có một ứng dụng Vite khác đang chạy. Bạn có thể tắt tiến trình cũ hoặc Vite sẽ tự động gợi ý chuyển sang cổng kế tiếp (ví dụ `http://localhost:5174`).
+   - Cổng `5432`: Máy tính của bạn có thể đã cài sẵn PostgreSQL chạy dịch vụ nền (Windows Service). Hãy tạm dừng dịch vụ đó hoặc đổi cổng ánh xạ trong `docker-compose.yml` (ví dụ `"5433:5432"`).
+   - Cổng `5555`: Prisma Studio cũ chưa được giải phóng. Nhấn `Ctrl + C` tại terminal đang chạy Prisma Studio để đóng kết nối.
+
+3. **Lỗi không kết nối được PostgreSQL trong Docker:**
+   - Đảm bảo Docker Desktop đã được bật và đang chạy.
+   - Chạy lệnh `docker compose ps` để kiểm tra trạng thái container `smart-edu-db`. Nếu container gặp sự cố, kiểm tra log bằng lệnh `docker compose logs db`.
+
+4. **Lỗi hiển thị ký tự tiếng Việt khi chạy scripts trên Windows Command Prompt:**
+   - Chuyển mã hóa bảng mã dòng lệnh sang UTF-8 bằng cách chạy lệnh `chcp 65001` trước khi thực thi các lệnh terminal.
+
+---
+
+## 📄 Bản quyền & Thông tin tác giả
+
+Dự án được xây dựng và phát triển phục vụ nghiên cứu, học tập và ứng dụng thực tiễn hệ thống Quản lý Đào tạo Ngoại ngữ.
 
 - **Repository Chính:** [tenki1612/SMART-EDU-VER2](https://github.com/tenki1612/SMART-EDU-VER2)
 - **Tác giả:** [tenki1612](https://github.com/tenki1612)
