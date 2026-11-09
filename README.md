@@ -13,86 +13,77 @@
 
 ## 📖 1. TỔNG QUAN DỰ ÁN
 
-**SMART-EDU LMS** là nền tảng quản trị và vận hành toàn diện dành cho Trung tâm Ngoại ngữ hiện đại. Hệ thống được xây dựng theo kiến trúc **Feature-Driven Frontend (React 19 + Vite + Tailwind CSS v4)** kết hợp module **Cơ sở dữ liệu độc lập (PostgreSQL 16 & SQLite)**, hiện thực hóa đầy đủ **82 chức năng nghiệp vụ (FR-01 $\rightarrow$ FR-82)** thuộc **11 phân hệ nghiệp vụ** và đáp ứng 5 nhóm vai trò người dùng trong hệ sinh thái giáo dục.
+**SMART-EDU LMS** là giải pháp phần mềm toàn diện hỗ trợ số hóa và tự động hóa quy trình quản lý, đào tạo và vận hành tại các Trung tâm Ngoại ngữ. Dự án tập trung giải quyết các bài toán nghiệp vụ trọng yếu: tuyển sinh trực tuyến, điều phối lớp học, kiểm soát sĩ số, lập lịch thời khóa biểu tự động phát hiện xung đột, quản lý sổ điểm trọng số và theo dõi lộ trình đào tạo của học viên.
 
-### 🌟 Điểm nổi bật:
-- ⚡ **Giao diện thế hệ mới:** Tận dụng hiệu năng vượt trội của **React 19**, **Vite 8** và **Tailwind CSS v4** với trải nghiệm người dùng phản hồi tức thì (Instant UI feedback).
-- 🛡️ **Phân quyền vai trò nghiêm ngặt (RBAC 5 Roles):** Quản trị viên (Admin), Nhân viên học vụ (Staff), Giáo viên (Teacher), Học viên (Student), Phụ huynh (Parent).
-- 🧩 **11 Phân hệ chức năng hoàn chỉnh:** Từ tuyển sinh, xếp lớp, quản lý thời khóa biểu ma trận tuần, phát hiện xung đột lịch học, đến sổ điểm trọng số và lộ trình nâng khóa.
-- 🗄️ **Database đa năng & sẵn sàng sử dụng:** Cung cấp sẵn cơ sở dữ liệu SQLite (zero-config) và PostgreSQL 16 tích hợp Docker Compose tự động nạp dữ liệu khởi tạo.
+Phiên bản **VER2** được tái cấu trúc theo mô hình **Decoupled Architecture (Tách rời Frontend & Database)** nhằm tối ưu hóa tính độc lập, khả năng mở rộng và hiệu năng hệ thống:
+- **Frontend SPA Hiện Đại:** Xây dựng trên nền tảng **React 19**, **Vite 8** và **Tailwind CSS v4** theo mô hình *Feature-Driven Architecture*, tối ưu re-render, giao diện phản hồi nhanh và thân thiện trên mọi thiết bị.
+- **Tầng Database Độc Lập:** Tách biệt cơ sở dữ liệu quan hệ với đầy đủ lược đồ chuẩn hóa 3NF, hỗ trợ song song **SQLite** (phát triển nhanh không cần cấu hình) và **PostgreSQL 16** (container hóa với Docker Compose sẵn sàng cho môi trường production).
+- **Sẵn Sàng Tích Hợp API:** Lớp dịch vụ API (`api.js`) với cơ chế Axios Interceptors xử lý JWT Bearer Token tập trung, chuẩn hóa request/response và dễ dàng kết nối tới bất kỳ nền tảng Backend nào (FastAPI, Express, Spring Boot, NestJS...).
 
 ---
 
-## 🏛️ 2. KIẾN TRÚC HỆ THỐNG
+## 🏛️ 2. KIẾN TRÚC HỆ THỐNG & NGUYÊN LÝ THIẾT KẾ
+
+Hệ thống được thiết kế theo kiến trúc phân tầng (Layered Architecture) với nguyên lý phân tách trách nhiệm (Separation of Concerns - SoC) và khớp nối lỏng (Loose Coupling):
 
 ```mermaid
-graph TD
-    subgraph Client["🖥️ Frontend Client (React 19 + Vite)"]
-        UI["UI Layer (Tailwind CSS v4 + Lucide Icons)"]
-        Views["Feature Views (11 Core Modules)"]
-        AuthCtx["Auth Context (JWT & RBAC State)"]
-        ApiClient["Axios API Client (Interceptor /api/v1)"]
-        UI --> Views
-        Views --> AuthCtx
-        Views --> ApiClient
+flowchart TD
+    subgraph UI_Layer["🖥️ TẦNG GIAO DIỆN & TRÌNH DIỄN (Presentation Layer)"]
+        Components["Shared Components (Navbar, Modals, DataTables, Badges, Dropdowns)"]
+        Views["Feature Views (Auth, Courses, Classes, Schedules, Grades, Progressions)"]
+        Styling["Tailwind CSS v4 Styling Engine + Lucide Vector Icons"]
+        Components --> Views
+        Styling --> Components
     end
 
-    subgraph DatabaseLayer["🗄️ Database & Storage Layer"]
-        PG["PostgreSQL 16 (Docker Compose)"]
-        SQLite["SQLite (language_center.db)"]
-        PrismaStudio["Prisma Studio GUI (Port 5555)"]
+    subgraph State_Layer["⚡ TẦNG QUẢN TRỊ TRẠNG THÁI & ĐIỀU HƯỚNG (State & Routing Layer)"]
+        Router["App Router & Role-Based Route Guards"]
+        AuthContext["Auth Context (JWT State, User Session, RBAC 5 Roles)"]
+        Views --> Router
+        Router --> AuthContext
     end
 
-    ApiClient -.->|"REST API / Mock Services"| DatabaseLayer
-    PG --- PrismaStudio
-    SQLite --- PrismaStudio
+    subgraph Service_Layer["🌐 TẦNG GIAO TIẾP DỊCH VỤ (Service & API Layer)"]
+        AxiosClient["Axios HTTP Client (Base URL: /api/v1)"]
+        Interceptors["JWT Bearer Interceptors & Centralized Error Handlers"]
+        APIModules["Domain APIs (authApi, coursesApi, classesApi, schedulesApi, gradesApi)"]
+        AuthContext --> AxiosClient
+        AxiosClient --> Interceptors
+        Interceptors --> APIModules
+    end
+
+    subgraph Database_Layer["🗄️ TẦNG CƠ SỞ DỮ LIỆU & LƯU TRỮ (Database & Storage Layer)"]
+        direction TB
+        SQLiteDB[("SQLite Database (language_center.db)")]
+        PostgresDB[("PostgreSQL 16 Container (Docker Compose)")]
+        PrismaStudio["Prisma ORM & Studio GUI (Port 5555)"]
+        SQLiteDB --- PrismaStudio
+        PostgresDB --- PrismaStudio
+    end
+
+    APIModules -.->|"RESTful Endpoints"| Database_Layer
+
+    classDef primary fill:#2563EB,stroke:#1D4ED8,stroke-width:2px,color:#fff;
+    classDef secondary fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef storage fill:#D97706,stroke:#B45309,stroke-width:2px,color:#fff;
+    class Views,Router,AuthContext primary;
+    class AxiosClient,Interceptors,APIModules secondary;
+    class SQLiteDB,PostgresDB,PrismaStudio storage;
 ```
 
----
-
-## 👥 3. TÀI KHOẢN MẪU KHỞI TẠO (5 VAI TRÒ SẴN CÓ)
-
-Cơ sở dữ liệu đã được nạp sẵn dữ liệu mẫu cho cả 5 nhóm đối tượng người dùng. Mật khẩu đều được băm bằng chuẩn `bcrypt` an toàn:
-
-| Vai trò (Role) | Tài khoản | Mật khẩu | Họ và tên | Phạm vi quyền hạn chính |
-|---|:---:|:---:|---|---|
-| 👑 **Quản trị viên (Admin)** | `admin` | `admin123` | Nguyễn Văn Quản Trị | Toàn quyền quản trị: Khóa học, phòng học, lớp học, tài khoản & nâng quyền vai trò (FR-01 $\rightarrow$ FR-17, FR-42 $\rightarrow$ FR-49). |
-| 📋 **Nhân viên học vụ (Staff)** | `staff` | `staff123` | Trần Thị Học Vụ | Duyệt đơn ghi danh, điều phối lịch học, xếp phòng, giải quyết xung đột thời khóa biểu, khóa sổ điểm chính thức, xét chuyển khóa (FR-55 $\rightarrow$ FR-67, FR-76, FR-78). |
-| 👨‍🏫 **Giáo viên (Teacher)** | `teacher` | `teacher123` | ThS. Lê Hoàng Nam | Tra cứu lịch giảng dạy cá nhân, danh sách lớp phụ trách, nhập điểm thành phần và tính điểm tổng kết (FR-27 $\rightarrow$ FR-31, FR-68 $\rightarrow$ FR-71). |
-| 🎓 **Học viên (Student)** | `student` | `student123` | Phạm Minh Khang | Xem danh mục khóa học, nộp đơn đăng ký lớp, xem lịch học cá nhân, tra cứu bảng điểm và lộ trình nâng khóa (FR-50 $\rightarrow$ FR-54, FR-68, FR-72, FR-80). |
-| 👨‍👩‍👧 **Phụ huynh (Parent)** | `parent` | `parent123` | Phạm Quốc Hùng | Cổng phụ huynh: Giám sát tiến độ học tập, thời khóa biểu, điểm số chi tiết và trạng thái học phí của con em (FR-81, FR-82). |
-
-> [!NOTE]
-> Màn hình Đăng nhập cung cấp sẵn các nút bấm chọn nhanh thông tin tài khoản mẫu để tự động điền form, giúp kiểm thử nhanh chóng mà không cần gõ lại thông tin.
+### Các nguyên lý kiến trúc cốt lõi:
+1. **Feature-Driven Frontend Organization:** Mỗi phân hệ nghiệp vụ (Khóa học, Lớp học, Thời khóa biểu, Điểm số, Đăng ký) được đóng gói độc lập theo từng màn hình chuyên biệt (`src/views/`), giúp dễ bảo trì, mở rộng hoặc viết lại mà không ảnh hưởng tới toàn cục.
+2. **Role-Based Access Control (RBAC):** Kiểm soát phân quyền tập trung tại `AuthContext`, tự động lọc quyền truy cập màn hình và chức năng theo 5 vai trò hệ thống (`ADMIN`, `ACADEMIC_STAFF`, `TEACHER`, `STUDENT`, `PARENT`).
+3. **Decoupled Data Source:** Tách hoàn toàn tầng dữ liệu ra khỏi mã nguồn ứng dụng web. Dữ liệu có thể được truy vấn trực tiếp qua công cụ GUI, Prisma Studio hoặc tích hợp qua các REST/GraphQL API gateway.
 
 ---
 
-## 📌 4. MA TRẬN 11 PHÂN HỆ NGHIỆP VỤ (82 CHỨC NĂNG CỐT LÕI)
-
-Toàn bộ 11 phân hệ nghiệp vụ đã được số hóa thành các **GitHub Issues** chi tiết trên repository:
-
-| # | Phân hệ nghiệp vụ | Phạm vi FRs | Vai trò chính | Mô tả chức năng nổi bật | GitHub Issue |
-|:---:|:---|:---:|:---:|:---|:---:|
-| **1** | **Xác thực & Phân quyền RBAC** | FR-01 $\rightarrow$ FR-06 | Tất cả 5 vai trò | Đăng nhập an toàn, cấp JWT Token, phân quyền 5 roles, tự động khóa tài khoản sau 5 lần nhập sai, cấp OTP khôi phục mật khẩu. | [#1](https://github.com/tenki1612/SMART-EDU-VER2/issues/1) |
-| **2** | **Quản trị Tài khoản Người dùng** | FR-07 $\rightarrow$ FR-10 | Admin, Staff | Quản lý danh sách tài khoản, nâng quyền vai trò linh hoạt, khóa/mở khóa tài khoản khẩn cấp, xóa an toàn (Soft delete). | [#2](https://github.com/tenki1612/SMART-EDU-VER2/issues/2) |
-| **3** | **Quản lý Chương trình & Khóa học** | FR-11 $\rightarrow$ FR-17 | Admin, Staff, Student | Danh mục khóa học (IELTS, TOEIC, Giao tiếp), thiết lập chuẩn đầu ra, thời lượng, học phí, kích hoạt hoặc tạm ẩn khóa học. | [#3](https://github.com/tenki1612/SMART-EDU-VER2/issues/3) |
-| **4** | **Quản lý Hồ sơ Học viên** | FR-18 $\rightarrow$ FR-24 | Admin, Staff, Student | Hồ sơ học viên (Mã định danh `YY-XXXXX`), tra cứu toàn diện lịch sử học tập, tình trạng điểm số và lớp học đã/đang tham gia. | [#4](https://github.com/tenki1612/SMART-EDU-VER2/issues/4) |
-| **5** | **Quản lý Hồ sơ Giảng viên** | FR-25 $\rightarrow$ FR-31 | Admin, Staff | Quản lý đội ngũ giảng viên, học vị, chuyên môn chính (IELTS 8.0, TOEIC 900), phục vụ điều phối giảng dạy và xếp lớp. | [#5](https://github.com/tenki1612/SMART-EDU-VER2/issues/5) |
-| **6** | **Quản lý Mở lớp học & Sĩ số** | FR-32 $\rightarrow$ FR-41 | Admin, Staff, Student | Khởi tạo lớp học, giới hạn sức chứa tối đa (`max_capacity`), theo dõi sĩ số thực tế (`current_enrolled`), vòng đời trạng thái lớp học. | [#6](https://github.com/tenki1612/SMART-EDU-VER2/issues/6) |
-| **7** | **Quản lý Cơ sở vật chất & Phòng học** | FR-42 $\rightarrow$ FR-49 | Admin, Staff | Phân loại phòng học (Lý thuyết, Lab, Hội trường), quản lý số ghế ngồi, tự động từ chối xếp lịch với phòng đang bảo trì. | [#7](https://github.com/tenki1612/SMART-EDU-VER2/issues/7) |
-| **8** | **Quy trình Đăng ký & Duyệt ghi danh** | FR-50 $\rightarrow$ FR-60 | Student, Staff, Admin | Học viên gửi đơn đăng ký lớp học; Học vụ thẩm định, phê duyệt hoặc từ chối kèm lý do; Tự động bổ sung học viên vào danh sách lớp. | [#8](https://github.com/tenki1612/SMART-EDU-VER2/issues/8) |
-| **9** | **Thời khóa biểu & Thuật toán Xung đột** | FR-61 $\rightarrow$ FR-68 | Staff, Teacher, Student | Lập lịch học từng buổi; **Thuật toán tự động phát hiện xung đột phòng học hoặc giảng viên trùng giờ**; Bảng ma trận tuần trực quan. | [#9](https://github.com/tenki1612/SMART-EDU-VER2/issues/9) |
-| **10** | **Quản lý Sổ điểm & Khóa điểm** | FR-69 $\rightarrow$ FR-77 | Teacher, Staff, Student | Bảng nhập điểm trọng số (20% CC, 30% GK, 50% CK); Tự động tính điểm tổng kết & xếp loại Đạt/Chưa đạt; Học vụ xác nhận khóa sổ điểm. | [#10](https://github.com/tenki1612/SMART-EDU-VER2/issues/10) |
-| **11** | **Chuyển khóa & Cổng Phụ huynh** | FR-78 $\rightarrow$ FR-82 | Parent, Student, Staff | Kiểm tra điều kiện tiên quyết (Prerequisite Check) trước khi lên khóa cao hơn; Cổng phụ huynh theo dõi tiến độ và kết quả của con. | [#11](https://github.com/tenki1612/SMART-EDU-VER2/issues/11) |
-
----
-
-## 🚀 5. HƯỚNG DẪN KHỞI CHẠY (QUICK START)
+## 🚀 3. HƯỚNG DẪN KHỞI CHẠY (QUICK START)
 
 ### Yêu cầu môi trường:
 - **Node.js**: Phiên bản `18.x` trở lên (Khuyên dùng `20+` LTS).
 - **Trình duyệt hiện đại**: Chrome, Edge, Firefox, Brave.
-- *(Tùy chọn)* **Docker & Docker Compose**: Nếu muốn chạy PostgreSQL 16.
+- *(Tùy chọn)* **Docker & Docker Desktop**: Nếu muốn chạy PostgreSQL 16.
 
 ---
 
@@ -139,7 +130,7 @@ docker compose up -d
 
 ---
 
-## 📂 6. CẤU TRÚC DỰ ÁN (PROJECT STRUCTURE)
+## 📂 4. CẤU TRÚC DỰ ÁN (PROJECT STRUCTURE)
 
 ```text
 SMART-EDU-VER2/
@@ -161,7 +152,7 @@ SMART-EDU-VER2/
 │   │   ├── components/         # Các UI component dùng chung (Navbar, Modal, Tables, Badges)
 │   │   ├── context/            # AuthContext quản lý trạng thái phiên làm việc & JWT
 │   │   ├── services/           # api.js tập trung gọi API qua Axios
-│   │   ├── views/              # 11 màn hình phân hệ chức năng tương ứng
+│   │   ├── views/              # Các màn hình phân hệ chức năng tương ứng
 │   │   ├── App.jsx             # Điều hướng router và bố cục ứng dụng
 │   │   └── main.jsx            # Entry point của React 19
 │   ├── package.json            # Cấu hình dependencies Frontend (React 19, Tailwind v4)
@@ -178,7 +169,7 @@ SMART-EDU-VER2/
 
 ---
 
-## 🛠️ 7. CÔNG NGHỆ SỬ DỤNG (TECH STACK)
+## 🛠️ 5. CÔNG NGHỆ SỬ DỤNG (TECH STACK)
 
 | Thành phần | Công nghệ | Phiên bản | Mô tả vai trò |
 |---|---|:---:|---|
@@ -192,9 +183,9 @@ SMART-EDU-VER2/
 
 ---
 
-## 📄 8. BẢN QUYỀN & THÔNG TIN
+## 📄 6. BẢN QUYỀN & THÔNG TIN
 
-Dự án được xây dựng phục vụ nghiên cứu, học tập và triển khai thực tế hệ thống Quản lý Đào tạo Ngoại ngữ. 
+Dự án được xây dựng phục vụ nghiên cứu, học tập và triển khai thực tế hệ thống Quản lý Đào tạo Ngoại ngữ.
 
 - **Repository Chính:** [tenki1612/SMART-EDU-VER2](https://github.com/tenki1612/SMART-EDU-VER2)
 - **Tác giả:** [tenki1612](https://github.com/tenki1612)
