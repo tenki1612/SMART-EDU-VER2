@@ -14,6 +14,19 @@ class RegisterRequest(BaseModel):
     phone: Optional[str] = None
     role: RoleEnum = RoleEnum.STUDENT
 
+class RegisterParentForStaffRequest(BaseModel):
+    """
+    Cho phép Admin, Staff, Teacher đăng ký thêm tài khoản Phụ huynh cho bản thân:
+    - Giữ nguyên thông tin cá nhân (Họ tên) và số điện thoại
+    - Username mới cho tài khoản phụ huynh (mặc định hoặc tự chọn)
+    - Mật khẩu cho tài khoản phụ huynh (mặc định dùng chung mật khẩu hoặc đặt mới)
+    - Liên kết tới học viên con em (nếu có student_id)
+    """
+    username: Optional[str] = None
+    password: Optional[str] = None
+    student_id: Optional[int] = None
+    relationship_type: Optional[str] = "Phụ huynh / Người giám hộ"
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
