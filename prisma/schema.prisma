@@ -1,3 +1,7 @@
+// Prisma Schema cấu hình chuẩn tên các Khóa theo Sơ đồ lớp drawio
+// Sử dụng @map để ánh xạ tên khóa tiếng Việt (MaNguoiDung, MaHocVien, MaKhoaHoc...)
+// hiển thị chuẩn trên Prisma Studio mà không làm gãy tên cột vật lý của CSDL.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,240 +11,284 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BANG_DIEM {
-  MaBangDiem    Int       @id @default(autoincrement())
-  MaLopHoc      Int
-  MaHocVien     Int
-  DiemChuyenCan Float?
-  DiemGiuaKy    Float?
-  DiemCuoiKy    Float?
-  DiemTongKet   Float?
-  KetQua        String?   @db.VarChar(50)
-  DaKhoaSo      Boolean?
-  GhiChu        String?
-  NgayTao       DateTime? @db.Timestamp(6)
-  NgayCapNhat   DateTime? @db.Timestamp(6)
-  DaXoa         Boolean?
-  HOC_VIEN      HOC_VIEN  @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: NoAction, onUpdate: NoAction)
-  LOP_HOC       LOP_HOC   @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: NoAction, onUpdate: NoAction)
+/// 1. NGUOI_DUNG: Tài khoản người dùng & bảo mật
+model NGUOI_DUNG {
+  MaNguoiDung         Int                 @id @default(autoincrement()) @map("id")
+  TenDangNhap         String              @unique @map("username") @db.VarChar(50)
+  Email               String              @unique @map("email") @db.VarChar(100)
+  HoTen               String              @map("full_name") @db.VarChar(100)
+  MatKhau             String              @map("hashed_password") @db.VarChar(255)
+  VaiTro              String              @default("STUDENT") @map("role") @db.VarChar(14)
+  SoDienThoai         String?             @map("phone") @db.VarChar(20)
+  AnhDaiDien          String?             @map("avatar_url") @db.VarChar(500)
+  TrangThai           Boolean             @default(true) @map("is_active")
 
-  @@index([MaBangDiem], map: "ix_BANG_DIEM_MaBangDiem")
+  SoLanDangNhapSai    Int                 @default(0) @map("failed_login_attempts")
+  ThoiGianKhoa        DateTime?           @map("locked_until") @db.Timestamp(6)
+  MaXacThucOTP        String?             @map("reset_token") @db.VarChar(100)
+  HanXacThucOTP       DateTime?           @map("reset_token_expires_at") @db.Timestamp(6)
+
+  NgayTao             DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat         DateTime            @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa               Boolean             @default(false) @map("is_deleted")
+
+  // Quan hệ
+  HOC_VIEN            HOC_VIEN?
+  GIANG_VIEN          GIANG_VIEN?
+  PHU_HUYNH_HOC_VIEN  PHU_HUYNH_HOC_VIEN[]
+  YEU_CAU_DANG_KY     YEU_CAU_DANG_KY[]
+  TIEN_TRINH_KHOA_HOC TIEN_TRINH_KHOA_HOC[]
+
+  @@map("users")
 }
 
-model BUOI_HOC {
-  MaBuoiHoc   Int        @id @default(autoincrement())
-  MaLopHoc    Int
-  MaPhongHoc  Int
-  MaGiangVien Int
-  NgayHoc     DateTime   @db.Date
-  GioBatDau   String     @db.VarChar(10)
-  GioKetThuc  String     @db.VarChar(10)
-  CaHoc       String?    @db.VarChar(100)
-  DaXacNhan   Boolean?
-  TrangThai   String?    @db.VarChar(50)
-  NgayTao     DateTime?  @db.Timestamp(6)
-  NgayCapNhat DateTime?  @db.Timestamp(6)
-  DaXoa       Boolean?
-  GIANG_VIEN  GIANG_VIEN @relation(fields: [MaGiangVien], references: [MaGiangVien], onDelete: NoAction, onUpdate: NoAction)
-  LOP_HOC     LOP_HOC    @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: NoAction, onUpdate: NoAction)
-  PHONG_HOC   PHONG_HOC  @relation(fields: [MaPhongHoc], references: [MaPhongHoc], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([MaBuoiHoc], map: "ix_BUOI_HOC_MaBuoiHoc")
-}
-
-model GIANG_VIEN {
-  MaGiangVien   Int        @id @default(autoincrement())
-  MaNguoiDung   Int        @unique
-  MaSoGiangVien String     @unique(map: "ix_GIANG_VIEN_MaSoGiangVien") @db.VarChar(50)
-  ChuyenMon     String?    @db.VarChar(100)
-  HocVi         String?    @db.VarChar(100)
-  TrangThai     String?    @db.VarChar(50)
-  NgayTao       DateTime?  @db.Timestamp(6)
-  NgayCapNhat   DateTime?  @db.Timestamp(6)
-  DaXoa         Boolean?
-  BUOI_HOC      BUOI_HOC[]
-  NGUOI_DUNG    NGUOI_DUNG @relation(fields: [MaNguoiDung], references: [MaNguoiDung], onDelete: Cascade, onUpdate: NoAction)
-  LOP_HOC       LOP_HOC[]
-
-  @@index([MaGiangVien], map: "ix_GIANG_VIEN_MaGiangVien")
-}
-
+/// 2. HOC_VIEN: Hồ sơ học viên
 model HOC_VIEN {
-  MaHocVien           Int                   @id @default(autoincrement())
-  MaNguoiDung         Int                   @unique
-  MaSoHocVien         String                @unique(map: "ix_HOC_VIEN_MaSoHocVien") @db.VarChar(50)
-  NgaySinh            DateTime?             @db.Date
-  DiaChi              String?               @db.VarChar(255)
-  TrangThai           String?               @db.VarChar(50)
-  NgayTao             DateTime?             @db.Timestamp(6)
-  NgayCapNhat         DateTime?             @db.Timestamp(6)
-  DaXoa               Boolean?
-  BANG_DIEM           BANG_DIEM[]
-  NGUOI_DUNG          NGUOI_DUNG            @relation(fields: [MaNguoiDung], references: [MaNguoiDung], onDelete: Cascade, onUpdate: NoAction)
+  MaHocVien           Int                   @id @default(autoincrement()) @map("id")
+  MaNguoiDung         Int                   @unique @map("user_id")
+  MaSoHocVien         String                @unique @map("student_code") @db.VarChar(50)
+  NgaySinh            DateTime?             @map("date_of_birth") @db.Date
+  DiaChi              String?               @map("address") @db.VarChar(255)
+  TrangThai           String                @default("ACTIVE") @map("status") @db.VarChar(50)
+
+  NgayTao             DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat         DateTime              @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa               Boolean               @default(false) @map("is_deleted")
+
+  // Quan hệ
+  NGUOI_DUNG          NGUOI_DUNG            @relation(fields: [MaNguoiDung], references: [MaNguoiDung], onDelete: Cascade)
   HOC_VIEN_LOP_HOC    HOC_VIEN_LOP_HOC[]
   PHU_HUYNH_HOC_VIEN  PHU_HUYNH_HOC_VIEN[]
-  TIEN_TRINH_KHOA_HOC TIEN_TRINH_KHOA_HOC[]
+  BANG_DIEM           BANG_DIEM[]
   YEU_CAU_DANG_KY     YEU_CAU_DANG_KY[]
+  TIEN_TRINH_KHOA_HOC TIEN_TRINH_KHOA_HOC[]
 
-  @@index([MaHocVien], map: "ix_HOC_VIEN_MaHocVien")
+  @@map("students")
 }
 
-model HOC_VIEN_LOP_HOC {
-  MaHV_LH      Int       @id @default(autoincrement())
-  MaLopHoc     Int
-  MaHocVien    Int
-  NgayVaoLop   DateTime? @db.Timestamp(6)
-  TrangThaiHoc String?   @db.VarChar(50)
-  NgayTao      DateTime? @db.Timestamp(6)
-  NgayCapNhat  DateTime? @db.Timestamp(6)
-  DaXoa        Boolean?
-  HOC_VIEN     HOC_VIEN  @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: NoAction, onUpdate: NoAction)
-  LOP_HOC      LOP_HOC   @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: NoAction, onUpdate: NoAction)
+/// 3. GIANG_VIEN: Hồ sơ giảng viên
+model GIANG_VIEN {
+  MaGiangVien   Int                @id @default(autoincrement()) @map("id")
+  MaNguoiDung   Int                @unique @map("user_id")
+  MaSoGiangVien String             @unique @map("teacher_code") @db.VarChar(50)
+  ChuyenMon     String?            @map("specialty") @db.VarChar(100)
+  HocVi         String?            @map("degree") @db.VarChar(100)
+  TrangThai     String             @default("ACTIVE") @map("status") @db.VarChar(50)
 
-  @@index([MaHV_LH], map: "ix_HOC_VIEN_LOP_HOC_MaHV_LH")
+  NgayTao       DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat   DateTime           @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa         Boolean            @default(false) @map("is_deleted")
+
+  // Quan hệ
+  NGUOI_DUNG    NGUOI_DUNG         @relation(fields: [MaNguoiDung], references: [MaNguoiDung], onDelete: Cascade)
+  LOP_HOC       LOP_HOC[]
+  BUOI_HOC      BUOI_HOC[]
+
+  @@map("teachers")
 }
 
+/// 4. KHOA_HOC: Chương trình đào tạo & Chuẩn đầu ra
 model KHOA_HOC {
-  MaKhoaHoc                                                           Int                   @id @default(autoincrement())
-  MaSoKhoaHoc                                                         String                @unique(map: "ix_KHOA_HOC_MaSoKhoaHoc") @db.VarChar(50)
-  TenKhoaHoc                                                          String                @db.VarChar(150)
-  MoTa                                                                String?
-  TrinhDoMucTieu                                                      String                @db.VarChar(100)
-  ThoiLuongTuan                                                       Int?
-  HocPhi                                                              Float?
-  TrangThai                                                           Boolean?
-  NgayTao                                                             DateTime?             @db.Timestamp(6)
-  NgayCapNhat                                                         DateTime?             @db.Timestamp(6)
-  DaXoa                                                               Boolean?
-  LOP_HOC                                                             LOP_HOC[]
-  TIEN_TRINH_KHOA_HOC_TIEN_TRINH_KHOA_HOC_MaKhoaHocHienTaiToKHOA_HOC  TIEN_TRINH_KHOA_HOC[] @relation("TIEN_TRINH_KHOA_HOC_MaKhoaHocHienTaiToKHOA_HOC")
-  TIEN_TRINH_KHOA_HOC_TIEN_TRINH_KHOA_HOC_MaKhoaHocTiepTheoToKHOA_HOC TIEN_TRINH_KHOA_HOC[] @relation("TIEN_TRINH_KHOA_HOC_MaKhoaHocTiepTheoToKHOA_HOC")
+  MaKhoaHoc                                         Int                   @id @default(autoincrement()) @map("id")
+  MaSoKhoaHoc                                       String                @unique @map("code") @db.VarChar(50)
+  TenKhoaHoc                                        String                @map("title") @db.VarChar(150)
+  MoTa                                              String?               @map("description") @db.Text
+  TrinhDoMucTieu                                    String                @map("target_level") @db.VarChar(100)
+  ThoiLuongTuan                                     Int                   @map("duration_weeks")
+  HocPhi                                            Float                 @map("fee")
+  TrangThai                                         Boolean               @default(true) @map("is_active")
 
-  @@index([MaKhoaHoc], map: "ix_KHOA_HOC_MaKhoaHoc")
+  NgayTao                                           DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat                                       DateTime              @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa                                             Boolean               @default(false) @map("is_deleted")
+
+  // Quan hệ
+  LOP_HOC                                           LOP_HOC[]
+  TIEN_TRINH_KHOA_HOC_HienTai                       TIEN_TRINH_KHOA_HOC[] @relation("KhoaHocHienTai")
+  TIEN_TRINH_KHOA_HOC_TiepTheo                      TIEN_TRINH_KHOA_HOC[] @relation("KhoaHocTiepTheo")
+
+  @@map("courses")
 }
 
-model LOP_HOC {
-  MaLopHoc         Int                @id @default(autoincrement())
-  MaSoLop          String             @unique(map: "ix_LOP_HOC_MaSoLop") @db.VarChar(50)
-  MaKhoaHoc        Int
-  MaGiangVien      Int?
-  SiSoToiDa        Int?
-  SiSoHienTai      Int?
-  NgayBatDau       DateTime?          @db.Date
-  NgayKetThuc      DateTime?          @db.Date
-  TrangThai        String?            @db.VarChar(50)
-  NgayTao          DateTime?          @db.Timestamp(6)
-  NgayCapNhat      DateTime?          @db.Timestamp(6)
-  DaXoa            Boolean?
-  BANG_DIEM        BANG_DIEM[]
-  BUOI_HOC         BUOI_HOC[]
-  HOC_VIEN_LOP_HOC HOC_VIEN_LOP_HOC[]
-  GIANG_VIEN       GIANG_VIEN?        @relation(fields: [MaGiangVien], references: [MaGiangVien], onDelete: NoAction, onUpdate: NoAction)
-  KHOA_HOC         KHOA_HOC           @relation(fields: [MaKhoaHoc], references: [MaKhoaHoc], onDelete: NoAction, onUpdate: NoAction)
-  YEU_CAU_DANG_KY  YEU_CAU_DANG_KY[]
-
-  @@index([MaLopHoc], map: "ix_LOP_HOC_MaLopHoc")
-}
-
-model NGUOI_DUNG {
-  MaNguoiDung         Int                   @id @default(autoincrement())
-  TenDangNhap         String                @unique(map: "ix_NGUOI_DUNG_TenDangNhap") @db.VarChar(50)
-  Email               String                @unique(map: "ix_NGUOI_DUNG_Email") @db.VarChar(100)
-  HoTen               String                @db.VarChar(100)
-  MatKhau             String                @db.VarChar(255)
-  VaiTro              roleenum
-  SoDienThoai         String?               @db.VarChar(20)
-  AnhDaiDien          String?               @db.VarChar(500)
-  TrangThai           Boolean?
-  SoLanDangNhapSai    Int
-  ThoiGianKhoa        DateTime?             @db.Timestamp(6)
-  MaXacThucOTP        String?               @db.VarChar(100)
-  HanXacThucOTP       DateTime?             @db.Timestamp(6)
-  NgayTao             DateTime?             @db.Timestamp(6)
-  NgayCapNhat         DateTime?             @db.Timestamp(6)
-  DaXoa               Boolean?
-  GIANG_VIEN          GIANG_VIEN?
-  HOC_VIEN            HOC_VIEN?
-  PHU_HUYNH_HOC_VIEN  PHU_HUYNH_HOC_VIEN[]
-  TIEN_TRINH_KHOA_HOC TIEN_TRINH_KHOA_HOC[]
-  YEU_CAU_DANG_KY     YEU_CAU_DANG_KY[]
-
-  @@index([MaNguoiDung], map: "ix_NGUOI_DUNG_MaNguoiDung")
-}
-
+/// 5. PHONG_HOC: Phòng học & Cơ sở vật chất
 model PHONG_HOC {
-  MaPhongHoc  Int        @id @default(autoincrement())
-  MaSoPhong   String     @unique(map: "ix_PHONG_HOC_MaSoPhong") @db.VarChar(50)
-  ToaNha      String?    @db.VarChar(50)
-  SucChua     Int?
-  TrangThai   String?    @db.VarChar(50)
-  NgayTao     DateTime?  @db.Timestamp(6)
-  NgayCapNhat DateTime?  @db.Timestamp(6)
-  DaXoa       Boolean?
+  MaPhongHoc  Int        @id @default(autoincrement()) @map("id")
+  MaSoPhong   String     @unique @map("room_code") @db.VarChar(50)
+  ToaNha      String     @map("building") @db.VarChar(50)
+  SucChua     Int        @map("capacity")
+  TrangThai   String     @default("AVAILABLE") @map("status") @db.VarChar(50)
+
+  NgayTao     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa       Boolean    @default(false) @map("is_deleted")
+
+  // Quan hệ
   BUOI_HOC    BUOI_HOC[]
 
-  @@index([MaPhongHoc], map: "ix_PHONG_HOC_MaPhongHoc")
+  @@map("classrooms")
 }
 
-model PHU_HUYNH_HOC_VIEN {
-  MaPH_HV        Int        @id @default(autoincrement())
-  MaNguoiDung_PH Int
-  MaHocVien      Int
-  QuanHe         String?    @db.VarChar(50)
-  NgayTao        DateTime?  @db.Timestamp(6)
-  NgayCapNhat    DateTime?  @db.Timestamp(6)
-  DaXoa          Boolean?
-  HOC_VIEN       HOC_VIEN   @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: NoAction, onUpdate: NoAction)
-  NGUOI_DUNG     NGUOI_DUNG @relation(fields: [MaNguoiDung_PH], references: [MaNguoiDung], onDelete: NoAction, onUpdate: NoAction)
+/// 6. LOP_HOC: Quản lý lớp học & Sĩ số
+model LOP_HOC {
+  MaLopHoc         Int                @id @default(autoincrement()) @map("id")
+  MaSoLop          String             @unique @map("class_code") @db.VarChar(50)
+  MaKhoaHoc        Int                @map("course_id")
+  MaGiangVien      Int                @map("teacher_id")
+  SiSoToiDa        Int                @map("max_capacity")
+  SiSoHienTai      Int                @default(0) @map("current_enrolled")
+  NgayBatDau       DateTime           @map("start_date") @db.Date
+  NgayKetThuc      DateTime           @map("end_date") @db.Date
+  TrangThai        String             @default("OPEN_FOR_ENROLLMENT") @map("status") @db.VarChar(50)
 
-  @@index([MaPH_HV], map: "ix_PHU_HUYNH_HOC_VIEN_MaPH_HV")
+  NgayTao          DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat      DateTime           @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa            Boolean            @default(false) @map("is_deleted")
+
+  // Quan hệ
+  KHOA_HOC         KHOA_HOC           @relation(fields: [MaKhoaHoc], references: [MaKhoaHoc], onDelete: Restrict)
+  GIANG_VIEN       GIANG_VIEN         @relation(fields: [MaGiangVien], references: [MaGiangVien], onDelete: Restrict)
+  HOC_VIEN_LOP_HOC HOC_VIEN_LOP_HOC[]
+  BUOI_HOC         BUOI_HOC[]
+  BANG_DIEM        BANG_DIEM[]
+  YEU_CAU_DANG_KY  YEU_CAU_DANG_KY[]
+
+  @@map("classes")
 }
 
-model TIEN_TRINH_KHOA_HOC {
-  MaTienTrinh                                              Int         @id @default(autoincrement())
-  MaHocVien                                                Int
-  MaKhoaHocHienTai                                         Int
-  MaKhoaHocTiepTheo                                        Int
-  DuDieuKien                                               Boolean?
-  DaXacNhan                                                Boolean?
-  MaNguoiXacNhan                                           Int?
-  NgayXacNhan                                              DateTime?   @db.Timestamp(6)
-  GhiChu                                                   String?
-  NgayTao                                                  DateTime?   @db.Timestamp(6)
-  NgayCapNhat                                              DateTime?   @db.Timestamp(6)
-  DaXoa                                                    Boolean?
-  HOC_VIEN                                                 HOC_VIEN    @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: NoAction, onUpdate: NoAction)
-  KHOA_HOC_TIEN_TRINH_KHOA_HOC_MaKhoaHocHienTaiToKHOA_HOC  KHOA_HOC    @relation("TIEN_TRINH_KHOA_HOC_MaKhoaHocHienTaiToKHOA_HOC", fields: [MaKhoaHocHienTai], references: [MaKhoaHoc], onDelete: NoAction, onUpdate: NoAction)
-  KHOA_HOC_TIEN_TRINH_KHOA_HOC_MaKhoaHocTiepTheoToKHOA_HOC KHOA_HOC    @relation("TIEN_TRINH_KHOA_HOC_MaKhoaHocTiepTheoToKHOA_HOC", fields: [MaKhoaHocTiepTheo], references: [MaKhoaHoc], onDelete: NoAction, onUpdate: NoAction)
-  NGUOI_DUNG                                               NGUOI_DUNG? @relation(fields: [MaNguoiXacNhan], references: [MaNguoiDung], onDelete: NoAction, onUpdate: NoAction)
+/// 7. HOC_VIEN_LOP_HOC: Danh sách học viên trong lớp
+model HOC_VIEN_LOP_HOC {
+  MaHV_LH      Int       @id @default(autoincrement()) @map("id")
+  MaLopHoc     Int       @map("class_id")
+  MaHocVien    Int       @map("student_id")
+  NgayVaoLop   DateTime  @default(now()) @map("enrolled_at") @db.Timestamp(6)
+  TrangThaiHoc String    @default("ENROLLED") @map("status") @db.VarChar(50)
 
-  @@index([MaTienTrinh], map: "ix_TIEN_TRINH_KHOA_HOC_MaTienTrinh")
+  NgayTao      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat  DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa        Boolean   @default(false) @map("is_deleted")
+
+  // Quan hệ
+  LOP_HOC      LOP_HOC   @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: Cascade)
+  HOC_VIEN     HOC_VIEN  @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: Cascade)
+
+  @@unique([MaLopHoc, MaHocVien])
+  @@map("class_students")
 }
 
+/// 8. BUOI_HOC / THOI_KHOA_BIEU: Thời khóa biểu từng buổi
+model BUOI_HOC {
+  MaBuoiHoc   Int        @id @default(autoincrement()) @map("id")
+  MaLopHoc    Int        @map("class_id")
+  MaPhongHoc  Int        @map("classroom_id")
+  MaGiangVien Int        @map("teacher_id")
+  NgayHoc     DateTime   @map("session_date") @db.Date
+  GioBatDau   String     @map("start_time") @db.VarChar(10)
+  GioKetThuc  String     @map("end_time") @db.VarChar(10)
+  CaHoc       String     @map("slot_name") @db.VarChar(50)
+  DaXacNhan   Boolean    @default(false) @map("is_confirmed")
+  TrangThai   String     @default("SCHEDULED") @map("status") @db.VarChar(50)
+
+  NgayTao     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa       Boolean    @default(false) @map("is_deleted")
+
+  // Quan hệ
+  LOP_HOC     LOP_HOC    @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: Cascade)
+  PHONG_HOC   PHONG_HOC  @relation(fields: [MaPhongHoc], references: [MaPhongHoc], onDelete: Restrict)
+  GIANG_VIEN  GIANG_VIEN @relation(fields: [MaGiangVien], references: [MaGiangVien], onDelete: Restrict)
+
+  @@map("schedule_sessions")
+}
+
+/// 9. BANG_DIEM: Quản lý điểm số trọng số & Khóa sổ điểm
+model BANG_DIEM {
+  MaBangDiem    Int       @id @default(autoincrement()) @map("id")
+  MaLopHoc      Int       @map("class_id")
+  MaHocVien     Int       @map("student_id")
+  DiemChuyenCan Float     @default(0.0) @map("attendance_score")
+  DiemGiuaKy    Float     @default(0.0) @map("midterm_score")
+  DiemCuoiKy    Float     @default(0.0) @map("final_score")
+  DiemTongKet   Float     @default(0.0) @map("total_score")
+  KetQua        String    @default("PENDING") @map("result_status") @db.VarChar(50)
+  DaKhoaSo      Boolean   @default(false) @map("is_confirmed")
+  GhiChu        String?   @map("note") @db.Text
+
+  NgayTao       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa         Boolean   @default(false) @map("is_deleted")
+
+  // Quan hệ
+  LOP_HOC       LOP_HOC   @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: Cascade)
+  HOC_VIEN      HOC_VIEN  @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: Cascade)
+
+  @@unique([MaLopHoc, MaHocVien])
+  @@map("grade_records")
+}
+
+/// 10. YEU_CAU_DANG_KY: Xét duyệt ghi danh nhập học
 model YEU_CAU_DANG_KY {
-  MaYeuCau     Int         @id @default(autoincrement())
-  MaHocVien    Int
-  MaLopHoc     Int
-  NgayYeuCau   DateTime?   @db.Timestamp(6)
-  TrangThai    String?     @db.VarChar(50)
-  GhiChu       String?
-  LyDoTuChoi   String?
-  MaNguoiDuyet Int?
-  NgayDuyet    DateTime?   @db.Timestamp(6)
-  NgayTao      DateTime?   @db.Timestamp(6)
-  NgayCapNhat  DateTime?   @db.Timestamp(6)
-  DaXoa        Boolean?
-  HOC_VIEN     HOC_VIEN    @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: NoAction, onUpdate: NoAction)
-  LOP_HOC      LOP_HOC     @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: NoAction, onUpdate: NoAction)
-  NGUOI_DUNG   NGUOI_DUNG? @relation(fields: [MaNguoiDuyet], references: [MaNguoiDung], onDelete: NoAction, onUpdate: NoAction)
+  MaYeuCau     Int         @id @default(autoincrement()) @map("id")
+  MaHocVien    Int         @map("student_id")
+  MaLopHoc     Int         @map("class_id")
+  NgayYeuCau   DateTime    @default(now()) @map("request_date") @db.Timestamp(6)
+  TrangThai    String      @default("PENDING") @map("status") @db.VarChar(50)
+  GhiChu       String?     @map("note") @db.Text
+  LyDoTuChoi   String?     @map("rejection_reason") @db.Text
+  MaNguoiDuyet Int?        @map("reviewed_by")
+  NgayDuyet    DateTime?   @map("reviewed_at") @db.Timestamp(6)
 
-  @@index([MaYeuCau], map: "ix_YEU_CAU_DANG_KY_MaYeuCau")
+  NgayTao      DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat  DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa        Boolean     @default(false) @map("is_deleted")
+
+  // Quan hệ
+  HOC_VIEN     HOC_VIEN    @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: Cascade)
+  LOP_HOC      LOP_HOC     @relation(fields: [MaLopHoc], references: [MaLopHoc], onDelete: Cascade)
+  NGUOI_DUNG   NGUOI_DUNG? @relation(fields: [MaNguoiDuyet], references: [MaNguoiDung], onDelete: SetNull)
+
+  @@map("enrollment_requests")
 }
 
-enum roleenum {
-  ADMIN
-  ACADEMIC_STAFF
-  TEACHER
-  STUDENT
-  PARENT
+/// 11. TIEN_TRINH_KHOA_HOC: Lộ trình và điều kiện chuyển khóa
+model TIEN_TRINH_KHOA_HOC {
+  MaTienTrinh       Int         @id @default(autoincrement()) @map("id")
+  MaHocVien         Int         @map("student_id")
+  MaKhoaHocHienTai  Int         @map("current_course_id")
+  MaKhoaHocTiepTheo Int         @map("next_course_id")
+  DuDieuKien        Boolean     @default(false) @map("is_eligible")
+  DaXacNhan         Boolean     @default(false) @map("is_confirmed")
+  MaNguoiXacNhan    Int?        @map("confirmed_by")
+  NgayXacNhan       DateTime?   @map("confirmed_at") @db.Timestamp(6)
+  GhiChu            String?     @map("note") @db.Text
+
+  NgayTao           DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat       DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa             Boolean     @default(false) @map("is_deleted")
+
+  // Quan hệ
+  HOC_VIEN          HOC_VIEN    @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: Cascade)
+  KHOA_HOC_HienTai  KHOA_HOC    @relation("KhoaHocHienTai", fields: [MaKhoaHocHienTai], references: [MaKhoaHoc], onDelete: Restrict)
+  KHOA_HOC_TiepTheo KHOA_HOC    @relation("KhoaHocTiepTheo", fields: [MaKhoaHocTiepTheo], references: [MaKhoaHoc], onDelete: Restrict)
+  NGUOI_DUNG        NGUOI_DUNG? @relation(fields: [MaNguoiXacNhan], references: [MaNguoiDung], onDelete: SetNull)
+
+  @@map("course_progressions")
+}
+
+/// 12. PHU_HUYNH_HOC_VIEN: Liên kết phụ huynh giám hộ học viên
+model PHU_HUYNH_HOC_VIEN {
+  MaPH_HV        Int        @id @default(autoincrement()) @map("id")
+  MaNguoiDung_PH Int        @map("parent_user_id")
+  MaHocVien      Int        @map("student_id")
+  QuanHe         String     @default("Phụ huynh / Người giám hộ") @map("relationship_type") @db.VarChar(50)
+
+  NgayTao        DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  NgayCapNhat    DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+  DaXoa          Boolean    @default(false) @map("is_deleted")
+
+  // Quan hệ
+  NGUOI_DUNG     NGUOI_DUNG @relation(fields: [MaNguoiDung_PH], references: [MaNguoiDung], onDelete: Cascade)
+  HOC_VIEN       HOC_VIEN   @relation(fields: [MaHocVien], references: [MaHocVien], onDelete: Cascade)
+
+  @@unique([MaNguoiDung_PH, MaHocVien])
+  @@map("parent_students")
 }
