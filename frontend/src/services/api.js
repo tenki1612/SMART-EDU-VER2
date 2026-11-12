@@ -254,6 +254,10 @@ export const enrollmentsApi = {
         });
         return res.data;
     },
+    listOpenClasses: async () => {
+        const res = await apiClient.get('/enrollments/open-classes');
+        return res.data;
+    },
     getMyRequests: async () => {
         const res = await apiClient.get('/enrollments/my-requests');
         return res.data;
