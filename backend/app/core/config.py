@@ -27,9 +27,14 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "*"]
 
+    # File Uploads Directory (Single Source of Truth)
+    UPLOAD_DIR: Path = _BASE_DIR / "uploads"
+    AVATARS_DIR: Path = _BASE_DIR / "uploads" / "avatars"
+
     class Config:
         case_sensitive = True
         env_file = str(_BASE_DIR / ".env")
         extra = "allow"
 
 settings = Settings()
+settings.AVATARS_DIR.mkdir(parents=True, exist_ok=True)

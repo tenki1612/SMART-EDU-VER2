@@ -1,9 +1,12 @@
 import os
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.permissions import require_roles, RoleEnum, get_current_user_payload
 from app.core.exceptions import BusinessException, NotFoundException
 from app.common.response import ApiResponse
@@ -64,7 +67,7 @@ def update_my_profile(
     user = AccountService.update_user(db, user_id, data)
     return ApiResponse(data=user, message="Cập nhật hồ sơ cá nhân thành công")
 
-@router.patch("/me/avatar", response_model=ApiResponse[UserResponse], summary="Đổi ảnh đại diện cá nhân")
+@router.patch("/me/avatar", response_model=ApiResponse[UserResponse], summary="Đổi ảnh đại diện cá nhân (URL / Mẫu có sẵn)")
 def update_my_avatar(
     data: AvatarUpdateRequest,
     payload: dict = Depends(get_current_user_payload),
@@ -73,6 +76,57 @@ def update_my_avatar(
     user_id = int(payload["sub"])
     user = AccountService.update_user_avatar(db, user_id, data.avatar_url)
     return ApiResponse(data=user, message="Cập nhật ảnh đại diện thành công")
+
+@router.post("/me/avatar/upload", response_model=ApiResponse[UserResponse], summary="Tải lên ảnh đại diện từ máy tính cá nhân")
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    payload: dict = Depends(get_current_user_payload),
+    db: Session = Depends(get_db)
+):
+    user_id = int(payload["sub"])
+    
+    # 1. Kiểm tra định dạng tệp hình ảnh
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    allowed_content_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    
+    if ext not in allowed_extensions or (file.content_type and file.content_type not in allowed_content_types):
+        raise BusinessException("Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp hình ảnh (PNG, JPG, WEBP, GIF).")
+    
+    # 2. Đọc nội dung tệp và kiểm tra dung lượng (tối đa 5MB)
+    max_file_size = 5 * 1024 * 1024
+    content = await file.read()
+    if len(content) > max_file_size:
+        raise BusinessException("Kích thước tệp vượt quá giới hạn cho phép (tối đa 5MB)!")
+    if len(content) == 0:
+        raise BusinessException("Tệp tải lên không được để trống!")
+    
+    # 3. Chuẩn bị thư mục uploads/avatars
+    upload_folder = settings.AVATARS_DIR
+    upload_folder.mkdir(parents=True, exist_ok=True)
+    
+    # 4. Tạo tên tệp độc nhất tránh xung đột và chống tấn công Path Traversal
+    filename = f"avatar_u{user_id}_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}{ext}"
+    target_path = upload_folder / filename
+    
+    with open(target_path, "wb") as f:
+        f.write(content)
+        
+    relative_url = f"/uploads/avatars/{filename}"
+    
+    # 5. Cập nhật vào CSDL và dọn dẹp file avatar cũ trên máy chủ nếu có
+    user = AccountService.update_user_avatar_file(db, user_id, relative_url, upload_folder)
+    return ApiResponse(data=user, message="Tải lên và cập nhật ảnh đại diện thành công")
+
+@router.delete("/me/avatar", response_model=ApiResponse[UserResponse], summary="Xóa ảnh đại diện cá nhân")
+def delete_my_avatar(
+    payload: dict = Depends(get_current_user_payload),
+    db: Session = Depends(get_db)
+):
+    user_id = int(payload["sub"])
+    upload_folder = settings.AVATARS_DIR
+    user = AccountService.delete_user_avatar(db, user_id, upload_folder)
+    return ApiResponse(data=user, message="Đã xóa ảnh đại diện thành công")
 
 @router.post("/change-password", response_model=ApiResponse[bool], summary="Đổi mật khẩu tài khoản cá nhân")
 def change_password(

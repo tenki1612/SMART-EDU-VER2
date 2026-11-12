@@ -20,10 +20,8 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Upload directory
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
-os.makedirs(os.path.join(UPLOAD_DIR, "avatars"), exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# Upload directory (StaticFiles)
+app.mount("/uploads", StaticFiles(directory=str(settings.UPLOAD_DIR)), name="uploads")
 
 # CORS Middleware
 app.add_middleware(

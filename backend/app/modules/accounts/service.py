@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from app.modules.accounts.models import User
@@ -175,6 +177,47 @@ class AccountService:
         if not user:
             raise NotFoundException("Người dùng", user_id)
         user.avatar_url = avatar_url
+        db.commit()
+        db.refresh(user)
+        return user
+
+    @staticmethod
+    def update_user_avatar_file(db: Session, user_id: int, new_avatar_url: str, upload_folder: Optional[Path] = None) -> User:
+        user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+        if not user:
+            raise NotFoundException("Người dùng", user_id)
+        
+        # Xóa file avatar cục bộ cũ nếu có để tránh đầy bộ nhớ
+        if user.avatar_url and user.avatar_url.startswith("/uploads/avatars/") and upload_folder:
+            old_filename = os.path.basename(user.avatar_url)
+            old_filepath = upload_folder / old_filename
+            try:
+                if old_filepath.is_file():
+                    old_filepath.unlink()
+            except Exception:
+                pass
+                
+        user.avatar_url = new_avatar_url
+        db.commit()
+        db.refresh(user)
+        return user
+
+    @staticmethod
+    def delete_user_avatar(db: Session, user_id: int, upload_folder: Optional[Path] = None) -> User:
+        user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+        if not user:
+            raise NotFoundException("Người dùng", user_id)
+            
+        if user.avatar_url and user.avatar_url.startswith("/uploads/avatars/") and upload_folder:
+            old_filename = os.path.basename(user.avatar_url)
+            old_filepath = upload_folder / old_filename
+            try:
+                if old_filepath.is_file():
+                    old_filepath.unlink()
+            except Exception:
+                pass
+                
+        user.avatar_url = None
         db.commit()
         db.refresh(user)
         return user

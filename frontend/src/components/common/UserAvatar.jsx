@@ -64,17 +64,29 @@ export const UserAvatar = ({
 }) => {
   const [imgError, setImgError] = useState(false);
   const resolvedUrl = getResolvedAvatarUrl(avatarUrl);
+  const [currentSrc, setCurrentSrc] = useState(resolvedUrl);
 
-  // Reset error state when avatarUrl changes
+  // Reset error state and update source when avatarUrl changes
   useEffect(() => {
+    setCurrentSrc(resolvedUrl);
     setImgError(false);
-  }, [avatarUrl]);
+  }, [resolvedUrl]);
+
+  const handleImageError = () => {
+    // Nếu ảnh là đường dẫn cục bộ /uploads/... và bị lỗi tải qua dev-server,
+    // tự động fallback thử tải trực tiếp từ máy chủ backend (http://localhost:8000)
+    if (currentSrc && currentSrc.startsWith('/uploads/') && !currentSrc.startsWith('http')) {
+      setCurrentSrc(`http://localhost:8000${currentSrc}`);
+    } else {
+      setImgError(true);
+    }
+  };
 
   const initial = name?.trim()?.charAt(0)?.toUpperCase() || 'U';
   const gradientClass = roleGradients[role] || roleGradients.DEFAULT;
   const sizeClass = sizeClasses[size] || sizeClasses.md;
 
-  const hasValidImage = Boolean(resolvedUrl && !imgError);
+  const hasValidImage = Boolean(currentSrc && !imgError);
 
   return (
     <div
@@ -84,11 +96,11 @@ export const UserAvatar = ({
     >
       {hasValidImage ? (
         <img
-          src={resolvedUrl}
+          src={currentSrc}
           alt={alt || name || 'Ảnh đại diện'}
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
-          onError={() => setImgError(true)}
+          onError={handleImageError}
           loading="lazy"
         />
       ) : (
