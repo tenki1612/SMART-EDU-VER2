@@ -114,30 +114,40 @@ export const SchedulesView = () => {
     setLoading(true);
     try {
       const fetchPersonal = isTeacher || isStudent || showPersonalOnly;
-      const [resSchedules, resRooms, resTeachers, resClasses, resCourses] = await Promise.all([
+      const [resSchedules, resRooms, resTeachers, resClasses, resCourses, resRef] = await Promise.all([
         fetchPersonal ? schedulesApi.getPersonal() : schedulesApi.list(),
         classroomsApi.list().catch(() => ({ data: [] })),
         teachersApi.list().catch(() => ({ data: [] })),
         classesApi.list(isTeacher ? { my_classes: true } : {}).catch(() => ({ data: [] })),
         coursesApi.list().catch(() => ({ data: [] })),
+        schedulesApi.getReferenceData().catch(() => ({ data: null })),
       ]);
       setSchedules(resSchedules.data || []);
-      setClassrooms(resRooms.data || []);
-      setTeachers(resTeachers.data || []);
-      setClassesList(resClasses.data || []);
-      setCourses(resCourses.data || []);
 
-      if (resRooms.data?.length > 0 && !addForm.classroom_id) {
+      // Fallback sang dữ liệu tham chiếu của phân hệ lịch khi các endpoint
+      // classrooms/teachers/classes/courses (#3, #5, #6, #7) chưa sẵn sàng
+      const ref = resRef.data || {};
+      const rooms = resRooms.data?.length ? resRooms.data : (ref.classrooms || []);
+      const teacherList = resTeachers.data?.length ? resTeachers.data : (ref.teachers || []);
+      const classList = resClasses.data?.length ? resClasses.data : (ref.classes || []);
+      const courseList = resCourses.data?.length ? resCourses.data : (ref.courses || []);
+
+      setClassrooms(rooms);
+      setTeachers(teacherList);
+      setClassesList(classList);
+      setCourses(courseList);
+
+      if (rooms.length > 0 && !addForm.classroom_id) {
         setAddForm(prev => ({
           ...prev,
-          classroom_id: resRooms.data[0].id,
-          teacher_id: resTeachers.data?.[0]?.id || '',
-          class_id: resClasses.data?.[0]?.id || '',
+          classroom_id: rooms[0].id,
+          teacher_id: teacherList?.[0]?.id || '',
+          class_id: classList?.[0]?.id || '',
         }));
         setCheckForm(prev => ({
           ...prev,
-          classroom_id: resRooms.data[0].id,
-          teacher_id: resTeachers.data?.[0]?.id || 1,
+          classroom_id: rooms[0].id,
+          teacher_id: teacherList?.[0]?.id || 1,
         }));
       }
     } catch (e) {

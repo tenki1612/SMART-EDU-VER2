@@ -5,7 +5,9 @@ from app.modules.teachers.models import Teacher
 from app.modules.progression_parent.models import ParentStudent
 from app.modules.courses.models import Course
 from app.modules.classes.models import Class, ClassStudent
+from app.modules.classrooms.models import Classroom
 from app.modules.enrollments.models import EnrollmentRequest
+from app.modules.schedules.models import ScheduleSession
 
 __all__ = [
     "Base",
@@ -16,5 +18,7 @@ __all__ = [
     "Course",
     "Class",
     "ClassStudent",
-    "EnrollmentRequest"
+    "Classroom",
+    "EnrollmentRequest",
+    "ScheduleSession"
 ]

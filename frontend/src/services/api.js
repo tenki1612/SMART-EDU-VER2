@@ -321,6 +321,10 @@ export const schedulesApi = {
         const res = await apiClient.patch(`/schedules/classes/${classId}/confirm`);
         return res.data;
     },
+    getReferenceData: async () => {
+        const res = await apiClient.get('/schedules/reference-data');
+        return res.data;
+    },
 };
 
 // 10. Grades API
