@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmDialogContext';
 import { useHeaderSlot } from '../context/HeaderSlotContext';
-import { enrollmentsApi, classesApi, progressionParentApi } from '../services/api';
+import { enrollmentsApi, progressionParentApi } from '../services/api';
 import { UserAvatar } from '../components/common/UserAvatar';
 import {
   CheckCircle2,
@@ -45,7 +45,7 @@ export const EnrollmentsView = () => {
     try {
       if (isStudent) {
         const [resCls, resReq, resProg] = await Promise.all([
-          classesApi.list(undefined, 'OPEN_FOR_ENROLLMENT'),
+          enrollmentsApi.listOpenClasses(),
           enrollmentsApi.getMyRequests(),
           progressionParentApi.getMyProgressions().catch(() => ({ data: [] })),
         ]);
