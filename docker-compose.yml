@@ -27,7 +27,7 @@ services:
     container_name: language_center_backend
     restart: always
     environment:
-      - DATABASE_URL=sqlite:///../database/language_center.db
+      - DATABASE_URL=postgresql://postgres:postgrespassword2026@postgres:5432/language_center
       - SECRET_KEY=super-secret-key-change-in-production-language-center-2026
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440

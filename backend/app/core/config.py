@@ -20,8 +20,16 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def sanitize_database_url(cls, v):
-        if isinstance(v, str) and (v.startswith("file:") or not v.strip()):
-            return f"sqlite:///{_DEFAULT_DB.as_posix()}"
+        if isinstance(v, str):
+            # Tự động loại bỏ ?schema=... (tham số dành riêng cho Prisma nhưng gây lỗi psycopg2)
+            if "?schema=" in v:
+                v = v.split("?schema=")[0]
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif v.startswith("postgresql://") and not v.startswith("postgresql+"):
+                v = v.replace("postgresql://", "postgresql+psycopg2://", 1)
+            if v.startswith("file:") or not v.strip():
+                return f"sqlite:///{_DEFAULT_DB.as_posix()}"
         return v
     
     # CORS

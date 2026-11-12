@@ -18,11 +18,12 @@ from app.core.database import Base
 import app.models  # load all models for metadata
 
 def migrate_data():
-    pg_url = settings.DATABASE_URL
-    if not pg_url.startswith("postgresql"):
-        print("❌ Lỗi: DATABASE_URL hiện tại không phải PostgreSQL.")
-        print(f"DATABASE_URL hiện tại: {pg_url}")
-        return False
+    pg_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
+    if not pg_url or not pg_url.startswith("postgresql"):
+        pg_url = "postgresql://postgres:postgrespassword2026@localhost:5432/language_center"
+    
+    if "?schema=" in pg_url:
+        pg_url = pg_url.split("?schema=")[0]
 
     print(f"🔗 Đang kết nối tới PostgreSQL: {pg_url.split('@')[-1]}...")
     try:
